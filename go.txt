@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dream11 Team Predictor</title>
+    <title>AI Chat Assistant</title>
     <!-- PWA Manifest -->
     <link rel="manifest" href="manifest.json">
     <!-- Favicon -->
@@ -14,19 +14,15 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
     <!-- Marked.js CDN for Markdown parsing -->
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
-    <!-- jsPDF for PDF generation -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-    <!-- html2canvas to convert HTML to image for PDF -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <!-- Lucide Icons for a modern, futuristic feel -->
     <script src="https://cdn.jsdelivr.net/npm/lucide-dynamic@latest/dist/lucide.min.js"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
     <style>
         /*
-         * --- Custom Styles for Dream11 Predictor (Enhanced) ---
+         * --- Custom Styles for AI Chat Assistant (Enhanced) ---
          * This section enhances the Tailwind CSS with a modern, futuristic theme,
          * including a vibrant color palette, subtle animations, and improved
-         * responsiveness and UI elements.
+         * responsiveness and UI elements, specifically for a chat-only interface.
          */
         
         /* Basic font and transition settings for the whole page */
@@ -37,6 +33,11 @@
                               radial-gradient(at 100% 100%, hsl(260, 50%, 8%) 0%, transparent 50%);
             background-size: 150% 150%;
             background-attachment: fixed;
+            display: flex; /* For centering the chat window */
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh; /* Full viewport height */
+            padding: 1rem; /* Responsive padding */
         }
 
         /* Defining a vibrant color palette using CSS variables */
@@ -90,7 +91,7 @@
         body.dark .shadow-2xl { box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.45); }
         body.dark #error-message { background-color: #fee2e2; color: #b91c1c; } /* Light red error for contrast */
 
-        /* Custom styles for glowing effects on buttons and borders */
+        /* Custom styles for glowing effects on buttons */
         .glow-button {
             position: relative;
             z-index: 10;
@@ -110,16 +111,6 @@
             background-image: linear-gradient(to right, var(--accent-primary-dark), var(--accent-primary));
         }
         
-        .glow-border {
-            box-shadow: 0 0 15px rgba(99, 102, 241, 0.3); /* Slightly softer glow */
-            border: 1px solid rgba(99, 102, 241, 0.2);
-            transition: all 0.5s ease;
-        }
-        body.dark .glow-border {
-            box-shadow: 0 0 20px rgba(129, 140, 248, 0.25);
-            border: 1px solid rgba(129, 140, 248, 0.15);
-        }
-        
         /* Markdown content styling for better readability */
         .markdown-content h1, .markdown-content h2, .markdown-content h3 { font-weight: 800; margin-bottom: 0.75em; margin-top: 1.5em; line-height: 1.2; color: var(--accent-primary); }
         body.dark .markdown-content h1, body.dark .markdown-content h2, body.dark .markdown-content h3 { color: var(--accent-primary-dark); }
@@ -134,6 +125,7 @@
         .markdown-content p:last-child { margin-bottom: 0; }
 
         /* Custom styles for dark mode toggle switch */
+        .switch { margin-left: 0.5rem; } /* Adjusted for better alignment */
         .slider {
             background-color: #d1d5db;
             transition: .4s;
@@ -193,55 +185,12 @@
             }
         }
 
-        /* Animation for upload cloud icon */
-        @keyframes pulse-grow-shrink {
-            0%, 100% { transform: scale(1); opacity: 1; }
-            50% { transform: scale(1.1); opacity: 0.7; }
-        }
-        .animate-pulse-grow-shrink {
-            animation: pulse-grow-shrink 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
-        }
-        
-        /* Floating Chat Popup styles */
-        #chat-popup-container {
-            position: fixed;
-            bottom: 2rem;
-            right: 2rem;
-            z-index: 50;
-        }
-
-        /* Floating button style with text and icon */
-        #chat-toggle-button {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            padding: 0.75rem 1.5rem;
-            border-radius: 9999px; /* full rounded */
-            box-shadow: 0 0 10px var(--accent-secondary);
-            background-color: var(--accent-secondary);
-            color: white;
-            font-weight: bold;
-            transition: all 0.3s ease;
-            cursor: pointer;
-            border: none;
-            animation: pulse-glow 2s infinite cubic-bezier(0.4, 0, 0.6, 1);
-        }
-        #chat-toggle-button:hover {
-            transform: scale(1.05);
-            box-shadow: 0 0 15px var(--accent-secondary), 0 0 25px var(--accent-secondary), 0 0 35px var(--accent-secondary);
-        }
-
-        @keyframes pulse-glow {
-            0%, 100% { box-shadow: 0 0 10px var(--accent-secondary); }
-            50% { box-shadow: 0 0 20px var(--accent-secondary), 0 0 30px var(--accent-secondary); }
-        }
-        
-        #chat-popup-window {
-            /* Adjusted for better responsiveness */
+        /* Main Chat Window Styling */
+        #main-chat-window {
             width: 100%;
-            max-width: 400px;
-            height: 500px;
-            max-height: 80vh;
+            max-width: 768px; /* Adjusted max-width for a full-page chat experience */
+            min-height: 80vh; /* Minimum height for chat content */
+            height: 90vh; /* Responsive height */
             display: flex;
             flex-direction: column;
             background-color: rgba(255, 255, 255, 0.9); /* Slightly transparent white */
@@ -249,54 +198,16 @@
             box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
             border: 1px solid rgba(229, 231, 235, 0.7); /* Slightly transparent border */
             transition: all 0.3s ease-in-out;
-            transform-origin: bottom right;
             backdrop-filter: blur(8px); /* Frosted glass effect */
             -webkit-backdrop-filter: blur(8px); /* Safari support */
+            margin: auto; /* Center it horizontally */
         }
 
-        /* Dark mode specific for the chat popup */
-        body.dark #chat-popup-window {
+        /* Dark mode specific for the chat window */
+        body.dark #main-chat-window {
             background-color: rgba(19, 19, 26, 0.9); /* Slightly transparent dark */
             border-color: rgba(45, 55, 72, 0.7);
             box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.45);
-        }
-        
-        /* New classes for animation */
-        .chat-hidden {
-            opacity: 0;
-            transform: scale(0.8);
-            visibility: hidden;
-            pointer-events: none;
-        }
-        .chat-visible {
-            opacity: 1;
-            transform: scale(1);
-            visibility: visible;
-            pointer-events: auto;
-        }
-
-        /* Responsive adjustments for the floating chat */
-        @media (max-width: 768px) {
-            #chat-popup-container {
-                /* On small screens, move the button closer to the corner */
-                bottom: 1rem;
-                right: 1rem;
-            }
-            #chat-popup-window {
-                /* On small screens, the popup should be bigger */
-                bottom: 1rem;
-                right: 1rem;
-                width: calc(100vw - 2rem);
-                max-width: none; /* Override max-width for full screen-ish size */
-                height: calc(100vh - 2rem);
-            }
-            /* Hide text on floating button on smaller screens */
-            #chat-toggle-button span:not([data-lucide]) { /* Target the text span */
-                display: none;
-            }
-            #chat-toggle-button {
-                padding: 0.75rem; /* Make the button a square */
-            }
         }
         
         /* New chat message styles */
@@ -386,7 +297,7 @@
         /* Styling for the copy message */
         #copy-message {
             position: fixed;
-            bottom: 6rem;
+            bottom: 2rem;
             left: 50%;
             transform: translateX(-50%);
             padding: 0.75rem 1.5rem;
@@ -403,6 +314,7 @@
         #copy-message.show {
             opacity: 1;
             visibility: visible;
+            bottom: 4rem; /* Move up slightly when shown */
         }
 
         /* --- New/Enhanced Styles for Chat AI Responses & Code Blocks --- */
@@ -620,131 +532,7 @@
             0%, 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); }
             50% { box-shadow: 0 0 0 10px rgba(239, 68, 68, 0); }
         }
-
-        /* Styles for the hidden PDF export template */
-        #pdf-export-content {
-            display: none; /* Hidden by default */
-            width: 210mm; /* A4 width */
-            min-height: 297mm; /* A4 height, ensures at least one page worth of content */
-            padding: 20mm; /* Margins */
-            box-sizing: border-box; /* Include padding in width/height */
-            font-family: 'Inter', sans-serif;
-            color: #333;
-            background: white;
-            flex-direction: column; /* Ensure content flows vertically */
-            justify-content: space-between; /* Push header/footer to ends */
-        }
-
-        #pdf-export-content .pdf-header {
-            text-align: center;
-            margin-bottom: 20mm;
-            border-bottom: 2px solid #6366f1; /* Indigo */
-            padding-bottom: 10px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 10px;
-        }
-        #pdf-export-content .pdf-header h1 {
-            font-size: 28px;
-            font-weight: bold;
-            color: #6366f1; /* Indigo */
-            margin: 0;
-            line-height: 1;
-        }
-        #pdf-export-content .pdf-header p {
-            font-size: 14px;
-            color: #666;
-            margin-top: 5px;
-        }
-        #pdf-export-content .pdf-header .lucide {
-            width: 32px;
-            height: 32px;
-            color: #6366f1; /* Indigo */
-        }
-
-        #pdf-export-content .pdf-body {
-            flex-grow: 1; /* Allow body to take up remaining space */
-            font-size: 12px;
-            line-height: 1.6;
-        }
-
-        #pdf-export-content .pdf-body h1,
-        #pdf-export-content .pdf-body h2,
-        #pdf-export-content .pdf-body h3 {
-            font-weight: bold;
-            margin-bottom: 0.5em;
-            margin-top: 1em;
-            line-height: 1.2;
-            color: #6366f1; /* Indigo */
-        }
-        #pdf-export-content .pdf-body h1 { font-size: 24px; }
-        #pdf-export-content .pdf-body h2 { font-size: 20px; }
-        #pdf-export-content .pdf-body h3 { font-size: 16px; }
-        #pdf-export-content .pdf-body ul,
-        #pdf-export-content .pdf-body ol {
-            list-style-position: outside; /* Ensure bullets are visible */
-            margin-left: 2em;
-            margin-bottom: 1em;
-            padding: 0;
-        }
-        #pdf-export-content .pdf-body li {
-            margin-bottom: 0.3em;
-        }
-        #pdf-export-content .pdf-body strong {
-            font-weight: bold;
-            color: #22c55e; /* Green accent */
-        }
-        #pdf-export-content .pdf-body a {
-            color: #6366f1;
-            text-decoration: underline;
-        }
-        #pdf-export-content .pdf-body blockquote {
-            border-left: 4px solid #ccc;
-            padding-left: 1em;
-            margin-left: 0;
-            color: #555;
-            font-style: italic;
-        }
-
-        /* PDF Code block styling - adjusted for print */
-        #pdf-export-content .code-block-container {
-            background-color: #f8f8f2; /* Lighter background for print */
-            color: #333;
-            border-radius: 0.5rem;
-            margin-top: 1rem;
-            margin-bottom: 1rem;
-            overflow: hidden;
-            border: 1px solid #ddd;
-            box-shadow: none; /* No shadows in PDF */
-        }
-        #pdf-export-content .code-block-container pre {
-            padding: 0.8rem;
-            font-size: 10px;
-            line-height: 1.3;
-        }
-        #pdf-export-content .code-block-header {
-            background-color: #eee;
-            color: #555;
-            padding: 0.4rem 0.8rem;
-            border-bottom: 1px solid #ddd;
-            font-size: 0.8em;
-            display: flex; /* Re-enable flex for header elements like language */
-            justify-content: space-between;
-            align-items: center;
-        }
-        #pdf-export-content .code-block-copy-button { /* Hide copy button in PDF */
-            display: none;
-        }
-        #pdf-export-content .pdf-footer {
-            text-align: center;
-            margin-top: 20mm;
-            border-top: 1px solid #eee;
-            padding-top: 10px;
-            font-size: 10px;
-            color: #999;
-        }
-
+        
         /* Chat action buttons dropdown */
         .chat-actions-dropdown {
             position: absolute;
@@ -812,198 +600,78 @@
         }
 
         /* Drag and Drop visual feedback for chat window */
-        #chat-popup-window.drag-over-active {
+        #main-chat-window.drag-over-active {
             border: 2px dashed var(--accent-primary);
             box-shadow: 0 0 20px var(--accent-primary), 0 0 30px var(--accent-primary) inset;
         }
-        body.dark #chat-popup-window.drag-over-active {
+        body.dark #main-chat-window.drag-over-active {
             border: 2px dashed var(--accent-primary-dark);
             box-shadow: 0 0 20px var(--accent-primary-dark), 0 0 30px var(--accent-primary-dark) inset;
         }
-
     </style>
 </head>
 <body class="antialiased dark">
 
-    <!-- Main container with fluid padding for responsiveness -->
-    <div class="container mx-auto p-4 md:p-8 lg:p-12 min-h-screen flex items-start justify-center">
-        <div class="bg-white rounded-3xl shadow-2xl p-6 md:p-10 lg:p-12 border border-gray-100 transition-colors duration-300 w-full max-w-6xl glow-border">
-            
-            <!-- Header Section with Dark Mode Toggle -->
-            <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-10">
-                <div class="text-left mb-4 md:mb-0">
-                    <h1 class="text-4xl md:text-5xl lg:text-6xl font-extrabold text-gray-900 tracking-tight">
-                        Dream11 Predictor <span class="text-indigo-500">⚡</span>
-                    </h1>
-                    <p class="text-lg md:text-xl text-gray-600 mt-2">
-                        Analyze data and craft your winning team with AI.
-                    </p>
-                </div>
-                <div class="flex items-center space-x-2 mt-4 md:mt-0">
-                    <span class="text-gray-500 text-sm">Light</span>
-                    <label class="switch relative inline-block w-14 h-8">
-                        <input type="checkbox" id="dark-mode-toggle" class="opacity-0 w-0 h-0">
-                        <span class="slider absolute cursor-pointer top-0 left-0 right-0 bottom-0 rounded-full before:absolute before:content-[''] before:h-6 before:w-6 before:left-1 before:bottom-1 before:rounded-full"></span>
-                    </label>
-                    <span class="text-gray-500 text-sm">Dark</span>
-                </div>
-            </div>
+    <!-- Main Chat Container -->
+    <div id="main-chat-window">
+        <!-- Header for the chat -->
+        <div class="flex justify-between items-center p-4 border-b border-gray-200 dark:border-gray-700 rounded-t-2xl bg-gray-50 dark:bg-gray-800">
+            <h1 class="text-xl font-bold text-gray-800 dark:text-gray-200 flex items-center gap-2">
+                <span data-lucide="sparkles" class="w-6 h-6 text-indigo-500"></span> AI Chat Assistant
+            </h1>
+            <div class="flex items-center space-x-2">
+                <span class="text-gray-500 text-sm">Light</span>
+                <label class="switch relative inline-block w-14 h-8">
+                    <input type="checkbox" id="dark-mode-toggle" class="opacity-0 w-0 h-0">
+                    <span class="slider absolute cursor-pointer top-0 left-0 right-0 bottom-0 rounded-full before:absolute before:content-[''] before:h-6 before:w-6 before:left-1 before:bottom-1 before:rounded-full"></span>
+                </label>
+                <span class="text-gray-500 text-sm">Dark</span>
 
-            <!-- Disclaimer for Fantasy Sports Risks -->
-            <div class="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 p-4 mb-6 rounded-md" role="alert">
-                <p class="font-bold">Disclaimer:</p>
-                <p class="text-sm">Fantasy sports involve an element of financial risk and may be addictive. Please play responsibly and at your own risk. The predictions and advice provided by this AI are based on available data and are for informational purposes only. They do not guarantee financial winnings or success in fantasy contests.</p>
-            </div>
-
-
-            <!-- Main Content Area with responsive columns -->
-            <div class="flex flex-col gap-8">
-                <!-- Prediction Output -->
-                <div class="flex-1">
-                    
-                    <!-- Upload and Preview Section -->
-                    <div id="upload-area" class="bg-gray-50 rounded-2xl p-6 sm:p-8 mb-4 border-2 border-dashed border-gray-200 transition-all duration-300 hover:bg-gray-100 hover:border-indigo-400">
-                        <label for="image-upload" class="cursor-pointer block">
-                            <div class="flex flex-col items-center justify-center p-4 sm:p-6 text-center">
-                                <span data-lucide="upload-cloud" class="w-12 h-12 sm:w-14 sm:h-14 text-indigo-500 animate-pulse-grow-shrink"></span>
-                                <p class="mt-4 text-sm text-gray-600">
-                                    <span class="font-semibold text-indigo-600 hover:text-indigo-700 transition-colors">
-                                        Click to upload
-                                    </span>
-                                    or drag and drop your image(s)
-                                </p>
-                                <p class="text-xs text-gray-500 mt-1">PNG, JPG up to 10MB per image</p>
-                            </div>
-                        </label>
-                        <input type="file" id="image-upload" accept="image/*" class="hidden" multiple>
-                        <p class="text-xs text-gray-500 mt-4 text-center">
-                            <span data-lucide="info" class="w-4 h-4 inline-block align-text-bottom mr-1"></span> For best predictions, upload screenshots with player stats, recent form, team news, and pitch reports.
-                        </p>
-                    </div>
-
-                    <div id="preview-container" class="mb-4 hidden transition-opacity duration-300">
-                        <h2 class="text-lg sm:text-xl font-bold mb-4 text-gray-700 dark:text-gray-300">Image Preview(s):</h2>
-                        <div id="image-previews" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
-                            <!-- Image previews will be dynamically added here -->
-                        </div>
-                    </div>
-
-                    <!-- Action and Status Buttons -->
-                    <div class="flex flex-col sm:flex-row gap-4 mb-8">
-                        <button id="analyze-btn" class="flex-1 py-3 px-6 sm:py-4 sm:px-8 rounded-full bg-indigo-600 text-white font-bold shadow-lg focus:outline-none focus:ring-4 focus:ring-indigo-300 transition-all duration-300 disabled:bg-indigo-400 disabled:cursor-not-allowed transform hover:scale-105 glow-button" style="--accent-primary: #6366f1; --accent-primary-dark: #818cf8;">
-                            Analyze and Predict
-                        </button>
-                        <button id="clear-btn" class="flex-1 py-3 px-6 sm:py-4 sm:px-8 rounded-full bg-gray-200 text-gray-800 font-bold shadow-lg hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600 focus:outline-none focus:ring-4 focus:ring-gray-400 transition-all duration-300 transform hover:scale-105">
-                            Clear All
-                        </button>
-                    </div>
-
-                    <!-- AI Response Section -->
-                    <div id="results-container" class="hidden transition-opacity duration-300">
-                        <h2 class="text-xl sm:text-2xl font-bold mb-4 text-gray-700 dark:text-gray-300 border-b-2 border-indigo-500 dark:border-indigo-400 pb-2">AI's Dream11 Prediction:</h2>
-                        <div id="loading-indicator" class="hidden text-center text-gray-500 text-sm py-8">
-                             <!-- Modern loader animation -->
-                             <div class="loader-container">
-                                <div class="loader-dot"></div>
-                                <div class="loader-dot"></div>
-                                <div class="loader-dot"></div>
-                             </div>
-                            <span class="mt-4 block">Analyzing the image(s) and generating the team...</span>
-                        </div>
-                        <div id="error-message" class="hidden bg-red-100 border border-red-400 text-red-700 px-6 py-4 rounded-xl relative shadow-md" role="alert">
-                            <span class="block sm:inline" id="error-text"></span>
-                        </div>
-                        <div id="prediction-output" class="p-6 bg-gray-100 rounded-xl border border-gray-200 text-base shadow-inner markdown-content dark:bg-gray-800 dark:border-gray-700"></div>
-                        
-                        <!-- New buttons for PDF and Text Export -->
-                        <div id="export-buttons" class="mt-4 flex flex-col sm:flex-row gap-4 hidden">
-                            <button id="save-pdf-btn" class="flex-1 py-3 px-6 sm:py-4 sm:px-8 rounded-full bg-green-500 text-white font-bold shadow-lg hover:bg-green-600 focus:outline-none focus:ring-4 focus:ring-green-300 transition-all duration-300 transform hover:scale-105">
-                                <span data-lucide="file-text" class="w-5 h-5 mr-2 inline-block"></span> Save as PDF
-                            </button>
-                            <button id="share-text-btn" class="flex-1 py-3 px-6 sm:py-4 sm:px-8 rounded-full bg-blue-500 text-white font-bold shadow-lg hover:bg-blue-600 focus:outline-none focus:ring-4 focus:ring-blue-300 transition-all duration-300 transform hover:scale-105">
-                                <span data-lucide="share-2" class="w-5 h-5 mr-2 inline-block"></span> Share as Text
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-    
-    <!-- Floating Chat Popup -->
-    <div id="chat-popup-container">
-        <!-- Floating button to open the chat -->
-        <button id="chat-toggle-button" class="group">
-            <span data-lucide="message-square" class="w-6 h-6 text-white transition-transform duration-300 group-hover:rotate-12"></span>
-            <span class="ml-2">Chat with AI</span>
-        </button>
-
-        <!-- The actual chat popup window -->
-        <div id="chat-popup-window" class="chat-hidden fixed bottom-24 right-4 md:right-8 lg:right-12 flex-col">
-            <!-- Header for the chat popup -->
-            <div class="flex justify-between items-center p-4 border-b border-gray-200 dark:border-gray-700 rounded-t-2xl bg-gray-50 dark:bg-gray-800">
-                <h2 class="text-lg font-bold text-gray-800 dark:text-gray-200">Chat with AI</h2>
-                <button id="chat-close-button" aria-label="Close Chat" class="text-gray-500 hover:text-gray-900 dark:hover:text-white transition-colors p-1 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700">
-                    <span data-lucide="x" class="w-6 h-6"></span>
+                <button id="new-chat-button" aria-label="New Chat" title="Start a New Chat" class="text-gray-500 hover:text-gray-900 dark:hover:text-white transition-colors p-1 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 ml-2">
+                    <span data-lucide="refresh-ccw" class="w-6 h-6"></span>
                 </button>
             </div>
-            
-            <!-- Chat history div with a minimum height and scroll -->
-            <div id="chat-history" class="p-4 overflow-y-auto flex-1 flex flex-col">
-                <!-- Chat messages will be appended here -->
+        </div>
+        
+        <!-- Chat history div with a minimum height and scroll -->
+        <div id="chat-history" class="p-4 overflow-y-auto flex-1 flex flex-col">
+            <!-- Initial AI message will be appended here by JS -->
+        </div>
+        
+        <!-- Chat input section with attachment, voice and send button -->
+        <div class="p-4 border-t border-gray-200 dark:border-gray-700 relative">
+            <!-- Attachment preview -->
+            <div id="chat-attachments-preview-container" class="mb-2 flex flex-wrap items-center gap-2 hidden">
+                <!-- Attachments previews will be dynamically added here -->
             </div>
-            
-            <!-- Chat input section with attachment, voice and send button -->
-            <div class="p-4 border-t border-gray-200 dark:border-gray-700 relative">
-                <!-- Attachment preview -->
-                <div id="chat-attachments-preview-container" class="mb-2 flex flex-wrap items-center gap-2 hidden">
-                    <!-- Attachments previews will be dynamically added here -->
-                </div>
 
-                <!-- Dropdown for attachment/voice buttons -->
-                <div id="chat-actions-dropdown" class="chat-actions-dropdown hidden">
-                    <button id="voice-input-btn" class="w-full justify-start text-left">
-                        <span data-lucide="mic" class="w-5 h-5"></span> Voice Input
-                    </button>
-                    <label for="chat-image-upload" class="w-full justify-start text-left">
-                        <span data-lucide="paperclip" class="w-5 h-5"></span> Attach File
-                    </label>
-                    <input type="file" id="chat-image-upload" accept="image/*, .txt, .pdf, .csv, .json, .xml, .md" class="hidden" multiple>
-                </div>
+            <!-- Dropdown for attachment/voice buttons -->
+            <div id="chat-actions-dropdown" class="chat-actions-dropdown hidden">
+                <button id="voice-input-btn" class="w-full justify-start text-left">
+                    <span data-lucide="mic" class="w-5 h-5"></span> Voice Input
+                </button>
+                <label for="chat-file-upload" class="w-full justify-start text-left">
+                    <span data-lucide="paperclip" class="w-5 h-5"></span> Attach File
+                </label>
+                <input type="file" id="chat-file-upload" accept="image/*, .txt, .pdf, .csv, .json, .xml, .md" class="hidden" multiple>
+            </div>
 
-                <div class="flex gap-2 items-end">
-                    <input type="text" id="chat-input" class="flex-1 p-3 rounded-full border border-gray-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors shadow-sm dark:bg-gray-700 dark:border-gray-600 dark:text-white" placeholder="Ask a follow-up question...">
-                    
-                    <button id="add-chat-attachment-btn" aria-label="Add attachment or voice input" class="flex items-center justify-center w-12 h-12 rounded-full bg-gray-200 text-gray-600 dark:bg-gray-700 dark:text-gray-200 shadow-lg hover:bg-gray-300 dark:hover:bg-gray-600 cursor-pointer transition-all duration-300 flex-shrink-0">
-                        <span data-lucide="plus" class="w-5 h-5"></span>
-                    </button>
+            <div class="flex gap-2 items-end">
+                <input type="text" id="chat-input" class="flex-1 p-3 rounded-full border border-gray-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors shadow-sm dark:bg-gray-700 dark:border-gray-600 dark:text-white" placeholder="Type your message or ask a question...">
+                
+                <button id="add-chat-attachment-btn" aria-label="Add attachment or voice input" class="flex items-center justify-center w-12 h-12 rounded-full bg-gray-200 text-gray-600 dark:bg-gray-700 dark:text-gray-200 shadow-lg hover:bg-gray-300 dark:hover:bg-gray-600 cursor-pointer transition-all duration-300 flex-shrink-0">
+                    <span data-lucide="plus" class="w-5 h-5"></span>
+                </button>
 
-                    <button id="send-chat-btn" aria-label="Send Message" class="flex items-center justify-center w-12 h-12 rounded-full bg-indigo-600 text-white shadow-lg focus:outline-none focus:ring-4 focus:ring-indigo-300 transition-all duration-300 disabled:bg-indigo-400 disabled:cursor-not-allowed glow-button flex-shrink-0" style="--accent-primary: #6366f1; --accent-primary-dark: #818cf8;">
-                        <span data-lucide="send" class="w-5 h-5"></span>
-                    </button>
-                </div>
+                <button id="send-chat-btn" aria-label="Send Message" class="flex items-center justify-center w-12 h-12 rounded-full bg-indigo-600 text-white shadow-lg focus:outline-none focus:ring-4 focus:ring-indigo-300 transition-all duration-300 disabled:bg-indigo-400 disabled:cursor-not-allowed glow-button flex-shrink-0" style="--accent-primary: #6366f1; --accent-primary-dark: #818cf8;">
+                    <span data-lucide="send" class="w-5 h-5"></span>
+                </button>
             </div>
         </div>
     </div>
     
     <!-- Temporary message for clipboard copy -->
     <div id="copy-message">Text copied to clipboard!</div>
-
-    <!-- Hidden div for PDF export template -->
-    <div id="pdf-export-content" style="display: none;">
-        <div class="pdf-header">
-            <span data-lucide="trophy" class="w-8 h-8"></span>
-            <h1>Dream11 Team Prediction</h1>
-            <p>Generated on <span id="pdf-date"></span></p>
-        </div>
-        <div class="pdf-body">
-            <!-- Prediction output will be inserted here -->
-        </div>
-        <div class="pdf-footer">
-            Powered by Gemini AI | Dream11 Predictor
-        </div>
-    </div>
-
 
     <script type="text/javascript">
         // Register Service Worker for PWA capabilities
@@ -1019,8 +687,6 @@
             });
         }
 
-        // JavaScript for handling image upload, API call, and chat functionality
-        
         // This function call is from the Lucide Icon library to replace all `<span>` tags with the corresponding SVG icons
         // It should be called any time new Lucide icon elements are added to the DOM.
         const createIcons = () => {
@@ -1032,51 +698,34 @@
         window.addEventListener('load', () => {
              // Create icons on initial page load for the main UI
              createIcons();
+             // Append the initial AI greeting message
+             appendChatMessage('ai', 'Hello! I am your AI assistant. How can I assist you today? Feel free to ask questions or attach relevant files for analysis related to Dream11 or any other topic!');
         });
 
-        const uploadArea = document.getElementById('upload-area');
-        const imageUpload = document.getElementById('image-upload');
-        const imagePreviewsContainer = document.getElementById('image-previews'); 
-        const previewContainer = document.getElementById('preview-container');
-        const analyzeBtn = document.getElementById('analyze-btn');
-        const clearBtn = document.getElementById('clear-btn');
-        const loadingIndicator = document.getElementById('loading-indicator');
-        const resultsContainer = document.getElementById('results-container');
-        const predictionOutput = document.getElementById('prediction-output');
-        const exportButtons = document.getElementById('export-buttons');
-        const savePdfBtn = document.getElementById('save-pdf-btn');
-        const shareTextBtn = document.getElementById('share-text-btn');
-        const errorContainer = document.getElementById('error-message');
-        const errorText = document.getElementById('error-text');
-        
-        // Dark Mode elements
+        // DOM elements
+        const mainChatWindow = document.getElementById('main-chat-window');
         const darkModeToggle = document.getElementById('dark-mode-toggle');
-        
-        // Chat elements
-        const chatToggleButton = document.getElementById('chat-toggle-button');
-        const chatPopupWindow = document.getElementById('chat-popup-window');
-        const chatCloseButton = document.getElementById('chat-close-button');
+        const newChatButton = document.getElementById('new-chat-button');
         const chatHistoryDiv = document.getElementById('chat-history');
         const chatInput = document.getElementById('chat-input');
         const sendChatBtn = document.getElementById('send-chat-btn');
-        const chatImageUpload = document.getElementById('chat-image-upload');
+        const chatFileUpload = document.getElementById('chat-file-upload'); // Renamed from chat-image-upload for clarity
         const chatAttachmentsPreviewContainer = document.getElementById('chat-attachments-preview-container'); 
         const voiceInputBtn = document.getElementById('voice-input-btn');
-        const addChatAttachmentBtn = document.getElementById('add-chat-attachment-btn'); // New plus button
-        const chatActionsDropdown = document.getElementById('chat-actions-dropdown'); // New dropdown div
-        
-        // Copy message element
+        const addChatAttachmentBtn = document.getElementById('add-chat-attachment-btn');
+        const chatActionsDropdown = document.getElementById('chat-actions-dropdown');
         const copyMessage = document.getElementById('copy-message');
+        const errorContainer = document.createElement('div'); // Create error message container dynamically
+        errorContainer.id = 'error-message';
+        errorContainer.classList.add('hidden', 'bg-red-100', 'border', 'border-red-400', 'text-red-700', 'px-6', 'py-4', 'rounded-xl', 'relative', 'shadow-md', 'my-4');
+        const errorText = document.createElement('span');
+        errorText.id = 'error-text';
+        errorText.classList.add('block', 'sm:inline');
+        errorContainer.appendChild(errorText);
+        document.body.appendChild(errorContainer); // Append to body so it's globally visible
 
-        // PDF Export template elements
-        const pdfExportContent = document.getElementById('pdf-export-content');
-        const pdfBody = pdfExportContent.querySelector('.pdf-body');
-        const pdfDate = document.getElementById('pdf-date');
-
-        let uploadedMainImages = []; // Array to store {mimeType, data, file} for main upload
         let chatAttachments = []; // Array to store {file: File, mimeType: string, data: string} for chat
         let chatHistory = [];
-        let lastPredictionText = '';
 
         // Web Speech API related variables
         let currentUtterance = null;
@@ -1123,7 +772,7 @@
                 isVoiceInputActive = false;
                 voiceInputBtn.classList.remove('voice-input-active');
                 updateButtonIcon(voiceInputBtn, 'mic', 'w-5 h-5'); // Reset icon to mic in dropdown
-                chatInput.placeholder = 'Ask a follow-up question...';
+                chatInput.placeholder = 'Type your message or ask a question...';
 
                 // If there's a final transcript, populate the input field.
                 if (finalTranscript.trim() !== '') {
@@ -1138,7 +787,7 @@
                 isVoiceInputActive = false; // Important: reset state on error
                 voiceInputBtn.classList.remove('voice-input-active');
                 updateButtonIcon(voiceInputBtn, 'mic', 'w-5 h-5'); // Reset icon
-                chatInput.placeholder = 'Ask a follow-up question...';
+                chatInput.placeholder = 'Type your message or ask a question...';
                 chatActionsDropdown.classList.add('hidden'); // Hide dropdown on error too
 
                 console.error('Speech recognition error:', event.error);
@@ -1155,16 +804,6 @@
                     showError(`Speech recognition error: ${event.error}`);
                 }
             };
-            
-            // Optional: Listen for audio start/end for more granular control/feedback
-            recognition.onaudiostart = () => {
-                // console.log('Audio capturing started.');
-            };
-
-            recognition.onaudioend = () => {
-                // console.log('Audio capturing ended.');
-            };
-
         } else {
             console.warn('Web Speech API (SpeechRecognition) not supported in this browser. Voice input button will be hidden.');
             voiceInputBtn.style.display = 'none'; // Hide the voice input button if not supported
@@ -1222,6 +861,9 @@
         function showError(message) {
             errorText.textContent = message;
             errorContainer.classList.remove('hidden');
+            setTimeout(() => {
+                errorContainer.classList.add('hidden');
+            }, 5000); // Hide after 5 seconds
         }
         
         // --- Marked.js Custom Renderer for Code Blocks ---
@@ -1285,7 +927,7 @@
 
 
         // Function to append a message to the chat history
-        function appendChatMessage(role, text, attachments = []) { // removed generatedImage parameter
+        function appendChatMessage(role, text, attachments = []) {
             const messageDiv = document.createElement('div');
             messageDiv.classList.add('chat-message', role);
             
@@ -1352,227 +994,29 @@
             // Call createIcons() after adding new content to the chat history
             createIcons();
         }
-
-        // Function to display main image previews
-        function displayMainImagePreviews() {
-            imagePreviewsContainer.innerHTML = '';
-            if (uploadedMainImages.length > 0) {
-                previewContainer.classList.remove('hidden');
-                uploadedMainImages.forEach((image, index) => {
-                    const previewItem = document.createElement('div');
-                    previewItem.classList.add('relative', 'w-full', 'h-48', 'rounded-xl', 'overflow-hidden', 'shadow-lg', 'border', 'border-gray-200');
-                    previewItem.innerHTML = `
-                        <img src="${URL.createObjectURL(image.file)}" alt="Image Preview" class="w-full h-full object-contain">
-                        <button class="absolute top-2 right-2 p-1 bg-red-500 text-white rounded-full opacity-80 hover:opacity-100 transition-opacity remove-main-image-btn" data-index="${index}">
-                            <span data-lucide="x" class="w-4 h-4"></span>
-                        </button>
-                    `;
-                    imagePreviewsContainer.appendChild(previewItem);
-                });
-                createIcons(); // Ensure delete icons are rendered
-            } else {
-                previewContainer.classList.add('hidden');
-            }
-        }
-
-        // Event listener for main image upload input
-        imageUpload.addEventListener('change', async (event) => {
-            const files = Array.from(event.target.files);
-            if (files.length > 0) {
-                uploadedMainImages = []; // Reset array
-                
-                // Process each file
-                for (const file of files) {
-                    try {
-                        const { mimeType, data } = await fileToBase64(file);
-                        uploadedMainImages.push({ file, mimeType, data });
-
-                    } catch (error) {
-                        showError(`Failed to read file ${file.name}.`);
-                        console.error('File read error:', error);
-                    }
-                }
-                displayMainImagePreviews(); // Update previews
-                
-                analyzeBtn.disabled = uploadedMainImages.length === 0;
-                resultsContainer.classList.add('hidden'); // Hide previous results
-                exportButtons.classList.add('hidden'); // Hide export buttons
-                errorContainer.classList.add('hidden'); // Hide any previous errors
-                chatHistory = []; // Clear chat history
-                chatHistoryDiv.innerHTML = '';
-                messageTextCache.clear(); // Clear message text cache
-                chatToggleButton.classList.remove('hidden'); // Keep the chat button visible
-                chatPopupWindow.classList.add('chat-hidden'); // Ensure chat popup is hidden on new main upload
-            } else {
-                previewContainer.classList.add('hidden');
-                analyzeBtn.disabled = true;
-                uploadedMainImages = [];
-                displayMainImagePreviews(); // Clear previews if no files selected
-            }
-        });
-
-        // Event listener for removing main image previews (using event delegation)
-        imagePreviewsContainer.addEventListener('click', (event) => {
-            const removeBtn = event.target.closest('.remove-main-image-btn');
-            if (removeBtn) {
-                const index = parseInt(removeBtn.dataset.index);
-                uploadedMainImages.splice(index, 1); // Remove from array
-                displayMainImagePreviews(); // Re-render previews
-                analyzeBtn.disabled = uploadedMainImages.length === 0;
-            }
-        });
-
-        // Event listener for drag & drop on main upload area
-        uploadArea.addEventListener('dragover', (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            uploadArea.classList.add('border-indigo-600', 'bg-indigo-50');
-            uploadArea.classList.remove('hover:border-indigo-400');
-        });
-
-        uploadArea.addEventListener('dragleave', (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            uploadArea.classList.remove('border-indigo-600', 'bg-indigo-50');
-            uploadArea.classList.add('hover:border-indigo-400');
-        });
-
-        uploadArea.addEventListener('drop', async (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            uploadArea.classList.remove('border-indigo-600', 'bg-indigo-50');
-            uploadArea.classList.add('hover:border-indigo-400');
-
-            const files = Array.from(e.dataTransfer.files).filter(file => file.type.startsWith('image/'));
-            if (files.length > 0) {
-                uploadedMainImages = []; 
-                for (const file of files) {
-                    try {
-                        const { mimeType, data } = await fileToBase64(file);
-                        uploadedMainImages.push({ file, mimeType, data });
-                    } catch (error) {
-                        showError(`Failed to read file ${file.name}.`);
-                        console.error('File read error:', error);
-                    }
-                }
-                displayMainImagePreviews();
-                analyzeBtn.disabled = uploadedMainImages.length === 0;
-                resultsContainer.classList.add('hidden');
-                exportButtons.classList.add('hidden');
-                errorContainer.classList.add('hidden');
-                chatHistory = [];
-                chatHistoryDiv.innerHTML = '';
-                messageTextCache.clear();
-                chatToggleButton.classList.remove('hidden');
-                chatPopupWindow.classList.add('chat-hidden');
-            }
-        });
-
-        // Event listener for the Analyze button
-        analyzeBtn.addEventListener('click', async () => {
-            if (uploadedMainImages.length === 0) {
-                showError('Please upload at least one image first.');
-                return;
-            }
-            
-            // Show loading state
-            loadingIndicator.classList.remove('hidden');
-            analyzeBtn.disabled = true;
-            resultsContainer.classList.remove('hidden');
-            predictionOutput.innerHTML = '';
-            exportButtons.classList.add('hidden');
-            errorContainer.classList.add('hidden');
-            
-            // Hide the chat popup and show button during analysis for clarity
-            chatToggleButton.classList.remove('hidden'); 
-            chatPopupWindow.classList.add('chat-hidden'); 
-
-            // Modified prompt to include guidance for better predictions AND strategic advice
-            const initialPrompt = `Act as a professional sports analyst for the fantasy sports platform Dream11, specializing in cricket. You are given a screenshot(s) containing information about an upcoming cricket match.
-            
-            **Your Task:** Analyze all the text and images within the screenshot(s) to find key details such as player form, team news, pitch conditions, recent performances, and historical data. Based on your thorough analysis, provide the best possible Dream11 team, including a captain and vice-captain.
-            
-            **Output Format:** Your output must be a single, well-structured text block that:
-            1.  Lists the suggested Dream11 team by player role (Wicket-keeper, Batsmen, All-rounders, Bowlers), ensuring a balanced team.
-            2.  Provides a concise, point-form analysis explaining your choices for each key player and overall team composition. This analysis must be grounded in the data you extracted from the image.
-            3.  Suggests alternative players if options are available and reasons for them.
-            4.  Clearly highlights your Captain and Vice-Captain picks with justifications.
-            5.  Uses clear headings for each section (e.g., ## Team Analysis) and bullet points for lists (e.g., - Player Name).
-            6.  **IMPORTANT:** If you provide any code (e.g., HTML, JavaScript), always wrap it in a markdown code block (e.g., \`\`\`html\n<p>Hello</p>\n\`\`\` or \`\`\`javascript\nconsole.log('hi');\n\`\`\`).
-            
-            **Information Clarity:**
-            - If any crucial information (like specific player stats, team news, or detailed pitch reports) is missing or unclear in the image(s), you must explicitly state what information you were unable to retrieve and how this might impact the prediction.
-            
-            **Concluding Tips:** Conclude your response with a small section titled '### Tips for Maximizing Fantasy Points' advising the user on what kind of information helps you make more accurate predictions and strategic choices. This section should list:
-            - **Comprehensive Player Statistics:** Recent scores, wickets, economy rates, strike rates, fantasy points history.
-            - **Detailed Player Form:** Performance in last 5-10 matches, against specific opposition, and at the venue.
-            - **Team News & Dynamics:** Injuries, definite lineup changes, team's recent form, batting order, and specific roles (e.g., powerplay bowler, death bowler).
-            - **In-depth Pitch Reports:** Batting/bowling friendly, average scores, presence of dew, historical venue performance, and expected behavior throughout the match.
-            - **Head-to-Head Records:** Team vs. team and individual player vs. player matchups.
-            - **Strategic Advice:** Considerations for grand leagues vs. small leagues (e.g., differential picks, safe vs. risky captains), budget management, and understanding player roles for point optimization.
-            
-            This will help the user provide better inputs and formulate stronger strategies in the future.`;
-
-
-            try {
-                // Build the user parts for the initial image upload
-                const userParts = [{ text: initialPrompt }];
-                uploadedMainImages.forEach(img => {
-                    userParts.push({
-                        inlineData: {
-                            mimeType: img.mimeType,
-                            data: img.data
-                        }
-                    });
-                });
-                
-                const payload = {
-                    contents: [
-                        { role: "user", parts: userParts }
-                    ],
-                };
-                
-                const responseText = await callGeminiAPI(payload);
-                
-                // Store the raw text for sharing
-                lastPredictionText = responseText;
-
-                // Render the AI response text using Marked.js for display
-                predictionOutput.innerHTML = marked.parse(responseText);
-                
-                // Store the full, correctly formatted API history
-                chatHistory = [
-                    { role: 'user', parts: userParts },
-                    { role: 'model', parts: [{ text: responseText }] }
-                ];
-                
-                // After analysis, show the chat and export buttons
-                chatToggleButton.classList.remove('hidden');
-                exportButtons.classList.remove('hidden');
-                // The main prediction output is also considered the first AI chat message
-                appendChatMessage('ai', responseText); 
-                chatInput.focus();
-
-            } catch (error) {
-                console.error('Initial API call failed:', error);
-                showError(`An error occurred: ${error.message}`);
-            } finally {
-                loadingIndicator.classList.add('hidden');
-                analyzeBtn.disabled = false;
-            }
-        });
         
-        // Event listener for chat image/file upload
-        chatImageUpload.addEventListener('change', async (event) => {
+        // Event listener for chat file upload
+        chatFileUpload.addEventListener('change', async (event) => {
             const files = Array.from(event.target.files);
             if (files.length > 0) {
                 for (const file of files) {
-                    try {
-                        const { mimeType, data } = await fileToBase64(file);
-                        chatAttachments.push({ file, mimeType, data, name: file.name });
-                    } catch (error) {
-                        showError(`Failed to read chat file ${file.name}.`);
-                        console.error('Chat file read error:', error);
+                    // Basic file type validation for chat (allow images, text, pdf, csv, json, xml, md)
+                    const allowedTypes = [
+                        'image/', 'text/', 'application/pdf',
+                        'application/json', 'text/csv', 'application/xml', 'text/markdown'
+                    ];
+                    const isAllowed = allowedTypes.some(type => file.type.startsWith(type)) || file.name.endsWith('.md');
+
+                    if (isAllowed) {
+                        try {
+                            const { mimeType, data } = await fileToBase64(file);
+                            chatAttachments.push({ file, mimeType, data, name: file.name });
+                        } catch (error) {
+                            showError(`Failed to read chat file ${file.name}.`);
+                            console.error('Chat file read error:', error);
+                        }
+                    } else {
+                        showError(`File type not supported for chat: ${file.name} (${file.type}).`);
                     }
                 }
                 displayChatAttachments();
@@ -1663,7 +1107,7 @@
             // Clear input and attachment after sending
             chatInput.value = '';
             chatAttachments = [];
-            chatImageUpload.value = ''; // Clear file input
+            chatFileUpload.value = ''; // Clear file input
             displayChatAttachments(); // Clear attachment previews
             
             sendChatBtn.disabled = true;
@@ -1744,22 +1188,22 @@
         });
 
         // Drag and Drop for Chat Window
-        chatPopupWindow.addEventListener('dragover', (e) => {
+        mainChatWindow.addEventListener('dragover', (e) => {
             e.preventDefault();
             e.stopPropagation();
-            chatPopupWindow.classList.add('drag-over-active');
+            mainChatWindow.classList.add('drag-over-active');
         });
 
-        chatPopupWindow.addEventListener('dragleave', (e) => {
+        mainChatWindow.addEventListener('dragleave', (e) => {
             e.preventDefault();
             e.stopPropagation();
-            chatPopupWindow.classList.remove('drag-over-active');
+            mainChatWindow.classList.remove('drag-over-active');
         });
 
-        chatPopupWindow.addEventListener('drop', async (e) => {
+        mainChatWindow.addEventListener('drop', async (e) => {
             e.preventDefault();
             e.stopPropagation();
-            chatPopupWindow.classList.remove('drag-over-active');
+            mainChatWindow.classList.remove('drag-over-active');
 
             const files = Array.from(e.dataTransfer.files);
             if (files.length > 0) {
@@ -1788,33 +1232,8 @@
             }
         });
 
-
-        // Event listener for the Clear button
-        clearBtn.addEventListener('click', () => {
-            imageUpload.value = ''; // Reset the file input
-            uploadedMainImages = []; // Clear main images
-            displayMainImagePreviews(); // Clear the image previews
-            
-            predictionOutput.innerHTML = ''; // Clear the output text
-            resultsContainer.classList.add('hidden');
-            exportButtons.classList.add('hidden');
-            analyzeBtn.disabled = true;
-            
-            errorContainer.classList.add('hidden');
-            errorText.textContent = '';
-            chatToggleButton.classList.remove('hidden'); // Keep chat button visible
-            chatPopupWindow.classList.add('chat-hidden'); // Hide chat popup
-            chatHistory = []; // Clear chat history
-            chatHistoryDiv.innerHTML = '';
-            messageTextCache.clear(); // Clear message text cache
-            lastPredictionText = ''; // Clear the last prediction text
-            
-            // Clear chat-specific attachments
-            chatAttachments = [];
-            chatImageUpload.value = '';
-            displayChatAttachments(); // Clear attachment previews
-            chatActionsDropdown.classList.add('hidden'); // Hide dropdown
-
+        // Event listener for the New Chat button
+        newChatButton.addEventListener('click', () => {
             // Stop any ongoing speech
             if (isSpeaking) {
                 window.speechSynthesis.cancel();
@@ -1825,35 +1244,21 @@
             if (isVoiceInputActive && recognition) {
                 recognition.stop();
             }
-        });
 
-        // Floating chat popup toggle logic
-        chatToggleButton.addEventListener('click', () => {
-            chatPopupWindow.classList.remove('chat-hidden');
-            chatPopupWindow.classList.add('chat-visible');
+            chatHistory = []; // Clear chat history
+            chatHistoryDiv.innerHTML = '';
+            messageTextCache.clear(); // Clear message text cache
+            
+            // Clear chat-specific attachments
+            chatAttachments = [];
+            chatFileUpload.value = '';
+            displayChatAttachments(); // Clear attachment previews
+            chatActionsDropdown.classList.add('hidden'); // Hide dropdown
+
+            // Add initial AI greeting again
+            appendChatMessage('ai', 'Hello! I am your AI assistant. How can I assist you today? Feel free to ask questions or attach relevant files for analysis related to Dream11 or any other topic!');
+            chatInput.value = ''; // Clear chat input
             chatInput.focus();
-            setTimeout(createIcons, 50); 
-        });
-
-        chatCloseButton.addEventListener('click', () => {
-            chatPopupWindow.classList.remove('chat-visible');
-            chatPopupWindow.classList.add('chat-hidden');
-            chatActionsDropdown.classList.add('hidden'); // Hide dropdown when chat closes
-
-            // Stop any ongoing speech when closing chat
-            if (isSpeaking) {
-                window.speechSynthesis.cancel();
-                isSpeaking = false;
-                currentUtterance = null;
-                // Reset all dictate buttons to play state
-                document.querySelectorAll('.dictate-message-btn').forEach(btn => {
-                    updateButtonIcon(btn, 'volume-2'); // Reset icon
-                });
-            }
-            // Stop speech recognition if active
-            if (isVoiceInputActive && recognition) {
-                recognition.stop();
-            }
         });
         
         // Function to show a temporary message for clipboard copy
@@ -1863,139 +1268,6 @@
                 copyMessage.classList.remove('show');
             }, 3000);
         }
-
-        // Event listener for Save as PDF button
-        savePdfBtn.addEventListener('click', async () => {
-            if (!window.jspdf || !window.html2canvas) {
-                showError('PDF libraries not loaded. Please try again.');
-                return;
-            }
-            if (!lastPredictionText) {
-                showError('No prediction available to export to PDF.');
-                return;
-            }
-
-            const { jsPDF } = window.jspdf;
-            
-            // Prepare the hidden PDF template content
-            pdfBody.innerHTML = marked.parse(lastPredictionText);
-            pdfDate.textContent = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
-            
-            // Show the hidden div temporarily for html2canvas to render it with its specific styles
-            pdfExportContent.style.display = 'flex'; // Use flex to activate header/footer layout
-            // Ensure icons within the PDF template are rendered before html2canvas capture
-            createIcons(); 
-            
-            // Disable buttons during PDF generation
-            savePdfBtn.disabled = true;
-            shareTextBtn.disabled = true;
-
-            try {
-                const canvas = await html2canvas(pdfExportContent, {
-                    scale: 2, // Higher scale for better quality
-                    useCORS: true,
-                    // These options ensure the canvas captures the full scrollable content
-                    windowWidth: pdfExportContent.offsetWidth, 
-                    windowHeight: pdfExportContent.scrollHeight 
-                });
-
-                const imgData = canvas.toDataURL('image/png');
-                const imgWidth = canvas.width;
-                const imgHeight = canvas.height;
-
-                const pdf = new jsPDF('p', 'mm', 'a4');
-                const pdfPageWidth = pdf.internal.pageSize.getWidth(); // A4 width in mm (210mm)
-                const pdfPageHeight = pdf.internal.pageSize.getHeight(); // A4 height in mm (297mm)
-
-                // Calculate aspect ratio to fit image width to PDF page width
-                const imgAspectRatio = imgWidth / imgHeight;
-                let finalImgWidth = pdfPageWidth;
-                let finalImgHeight = pdfPageWidth / imgAspectRatio; // This is the height the image would be if it fit the width
-
-                let heightLeft = imgHeight; // Remaining height of the canvas image to be put into PDF (in canvas pixels)
-                let position = 0; // Current vertical position in canvas image (in canvas pixels)
-
-                let pageNumber = 1;
-
-                while (heightLeft > 0) {
-                    // Add a new page if it's not the first one
-                    if (position > 0) {
-                        pdf.addPage();
-                        pageNumber++;
-                    }
-
-                    // Calculate the portion of the canvas image that fits one PDF page
-                    // clipHeightPx is the height in the *original canvas pixels* that should be rendered on this PDF page.
-                    const clipHeightPx = Math.min(heightLeft, imgHeight * (pdfPageHeight / finalImgHeight));
-                    
-                    // Add the slice of the image to the PDF
-                    // addImage(imageData, format, x, y, width, height, alias, compression, rotation, sx, sy, sWidth, sHeight)
-                    // The sx, sy, sWidth, sHeight parameters define the source rectangle on the canvas
-                    pdf.addImage(imgData, 'PNG', 0, 0, finalImgWidth, pdfPageHeight, null, 'FAST', 0, 0, imgWidth, position, imgWidth, clipHeightPx);
-                    
-                    // Add page number at the bottom center
-                    pdf.setFontSize(10);
-                    pdf.setTextColor(150); // Gray color
-                    pdf.text(`Page ${pageNumber}`, pdfPageWidth / 2, pdfPageHeight - 10, { align: 'center' });
-
-                    heightLeft -= clipHeightPx;
-                    position += clipHeightPx;
-                }
-                
-                pdf.save('Dream11_Team_Prediction.pdf');
-            } catch (error) {
-                console.error('Error generating PDF:', error);
-                showError('Failed to generate PDF. Please try again.');
-            } finally {
-                // Hide the template div again
-                pdfExportContent.style.display = 'none';
-                savePdfBtn.disabled = false;
-                shareTextBtn.disabled = false;
-            }
-        });
-        
-        // Event listener for Share as Text button
-        shareTextBtn.addEventListener('click', () => {
-            if (lastPredictionText) {
-                const textToCopy = lastPredictionText.trim();
-                
-                // Copy to clipboard
-                const tempTextArea = document.createElement('textarea');
-                tempTextArea.value = textToCopy;
-                document.body.appendChild(tempTextArea);
-            
-                // Select and copy
-                if (navigator.clipboard && navigator.clipboard.writeText) {
-                    navigator.clipboard.writeText(textToCopy)
-                        .then(() => {
-                            showCopyMessage();
-                        })
-                        .catch(err => {
-                            console.error('Failed to copy text (Clipboard API):', err);
-                            tempTextArea.select();
-                            try {
-                                document.execCommand('copy'); // Fallback to deprecated method
-                                showCopyMessage();
-                            } catch (fallbackErr) {
-                                console.error('Failed to copy text (execCommand fallback):', fallbackErr);
-                                showError('Failed to copy text. Please copy manually.');
-                            }
-                        });
-                } else {
-                    tempTextArea.select();
-                    try {
-                        document.execCommand('copy'); // Fallback to deprecated method
-                        showCopyMessage();
-                    } catch (err) {
-                        console.error('Failed to copy text (execCommand):', err);
-                        showError('Failed to copy text. Please copy manually.');
-                    }
-                }
-                document.body.removeChild(tempTextArea);
-            } else {
-                showError('No team prediction to share yet.');
-            }
-        });
 
         // Event delegation for copy code buttons within chat history
         chatHistoryDiv.addEventListener('click', (event) => {
@@ -2209,6 +1481,18 @@
 </body>
 </html>
 
-----------------------------------------------------------------------------------------------------------------------------------------------------------------------
+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
-see above is the code of another website but i want you to build a separate website for the chat with ai feature alone. can you do that?
+fix these things : in mobile the footer is not responsive, decrease the text input breadth so send button and plus button fits and rename it "small ai". another thing is add versions section like this "<!-- Version Selector -->
+        <div class="flex items-center version-selector-group">
+            <label for="version-select" class="mr-2 text-gray-400 text-sm">Version:</label>
+            <select id="version-select" class="p-2 rounded-md border text-sm focus:ring-violet-500 focus:border-violet-500" aria-label="Select Chatbot Version">
+                <option value="https://mystic-vision-ai-standalone-chatbot.netlify.app/">Main Version</option>
+                <option value="https://mystic-vision-ai-lite.netlify.app/">Lite Version</option>
+                <option value="https://mystic-vision-ai-basic.netlify.app/">Basic Version</option>
+                <option value="https://mystic-vision-ai-mini.netlify.app/">Mini Version</option>
+                <option value="https://cosmic-chat-ai-simple-ai-chatbot.netlify.app/" selected>Cosmic Chat AI (Current)</option>
+                <option value="https://small-ai-big-vision.netlify.app/">Small AI</option>
+            </select>
+        </div>"
+so users can switch between versions.

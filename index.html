@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI Chat Assistant</title>
+    <title>Small AI</title> <!-- Updated title here -->
     <!-- PWA Manifest -->
     <link rel="manifest" href="manifest.json">
     <!-- Favicon -->
@@ -616,16 +616,32 @@
     <div id="main-chat-window">
         <!-- Header for the chat -->
         <div class="flex justify-between items-center p-4 border-b border-gray-200 dark:border-gray-700 rounded-t-2xl bg-gray-50 dark:bg-gray-800">
-            <h1 class="text-xl font-bold text-gray-800 dark:text-gray-200 flex items-center gap-2">
-                <span data-lucide="sparkles" class="w-6 h-6 text-indigo-500"></span> AI Chat Assistant
-            </h1>
+            <!-- Group title and version selector -->
+            <div class="flex items-center gap-4 flex-wrap"> <!-- Added flex-wrap for mobile responsiveness if items stack -->
+                <h1 class="text-xl font-bold text-gray-800 dark:text-gray-200 flex items-center gap-2">
+                    <span data-lucide="sparkles" class="w-6 h-6 text-indigo-500"></span> Small AI
+                </h1>
+                <!-- Version Selector -->
+                <div class="flex items-center version-selector-group">
+                    <label for="version-select" class="mr-2 text-gray-400 text-sm hidden sm:block">Version:</label> <!-- Hidden on very small screens, shown on sm+ -->
+                    <select id="version-select" class="p-2 rounded-md border text-sm focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200 w-fit max-w-[120px] sm:max-w-none" aria-label="Select Chatbot Version">
+                        <option value="https://mystic-vision-ai-standalone-chatbot.netlify.app/">Main Version</option>
+                        <option value="https://mystic-vision-ai-lite.netlify.app/">Lite Version</option>
+                        <option value="https://mystic-vision-ai-basic.netlify.app/">Basic Version</option>
+                        <option value="https://mystic-vision-ai-mini.netlify.app/">Mini Version</option>
+                        <option value="https://cosmic-chat-ai-simple-ai-chatbot.netlify.app/">Cosmic Chat AI</option>
+                        <option value="https://small-ai-big-vision.netlify.app/" selected>Small AI (Current)</option> <!-- 'selected' attribute moved here -->
+                    </select>
+                </div>
+            </div>
+            
             <div class="flex items-center space-x-2">
-                <span class="text-gray-500 text-sm">Light</span>
+                <span class="text-gray-500 text-sm hidden sm:inline">Light</span> <!-- Hidden on very small screens, shown on sm+ -->
                 <label class="switch relative inline-block w-14 h-8">
                     <input type="checkbox" id="dark-mode-toggle" class="opacity-0 w-0 h-0">
                     <span class="slider absolute cursor-pointer top-0 left-0 right-0 bottom-0 rounded-full before:absolute before:content-[''] before:h-6 before:w-6 before:left-1 before:bottom-1 before:rounded-full"></span>
                 </label>
-                <span class="text-gray-500 text-sm">Dark</span>
+                <span class="text-gray-500 text-sm hidden sm:inline">Dark</span> <!-- Hidden on very small screens, shown on sm+ -->
 
                 <button id="new-chat-button" aria-label="New Chat" title="Start a New Chat" class="text-gray-500 hover:text-gray-900 dark:hover:text-white transition-colors p-1 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 ml-2">
                     <span data-lucide="refresh-ccw" class="w-6 h-6"></span>
@@ -657,7 +673,7 @@
             </div>
 
             <div class="flex gap-2 items-end">
-                <input type="text" id="chat-input" class="flex-1 p-3 rounded-full border border-gray-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors shadow-sm dark:bg-gray-700 dark:border-gray-600 dark:text-white" placeholder="Type your message or ask a question...">
+                <input type="text" id="chat-input" class="flex-1 p-3 rounded-full border border-gray-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors shadow-sm dark:bg-gray-700 dark:border-gray-600 dark:text-white min-w-0" placeholder="Type your message or ask a question...">
                 
                 <button id="add-chat-attachment-btn" aria-label="Add attachment or voice input" class="flex items-center justify-center w-12 h-12 rounded-full bg-gray-200 text-gray-600 dark:bg-gray-700 dark:text-gray-200 shadow-lg hover:bg-gray-300 dark:hover:bg-gray-600 cursor-pointer transition-all duration-300 flex-shrink-0">
                     <span data-lucide="plus" class="w-5 h-5"></span>
@@ -715,6 +731,8 @@
         const addChatAttachmentBtn = document.getElementById('add-chat-attachment-btn');
         const chatActionsDropdown = document.getElementById('chat-actions-dropdown');
         const copyMessage = document.getElementById('copy-message');
+        const versionSelect = document.getElementById('version-select'); // Added: Version selector element
+
         const errorContainer = document.createElement('div'); // Create error message container dynamically
         errorContainer.id = 'error-message';
         errorContainer.classList.add('hidden', 'bg-red-100', 'border', 'border-red-400', 'text-red-700', 'px-6', 'py-4', 'rounded-xl', 'relative', 'shadow-md', 'my-4');
@@ -806,7 +824,10 @@
             };
         } else {
             console.warn('Web Speech API (SpeechRecognition) not supported in this browser. Voice input button will be hidden.');
-            voiceInputBtn.style.display = 'none'; // Hide the voice input button if not supported
+            // Only hide the voice input button itself if the feature isn't supported
+            if (voiceInputBtn) { // Check if element exists before modifying
+                voiceInputBtn.style.display = 'none'; 
+            }
         }
 
         // Dark Mode Initialization and Listener
@@ -833,6 +854,17 @@
                 localStorage.setItem('dark-mode', 'false');
             }
         });
+
+        // Added: Version Selector Listener
+        if (versionSelect) {
+            versionSelect.addEventListener('change', (event) => {
+                const selectedUrl = event.target.value;
+                if (selectedUrl && selectedUrl !== window.location.href) { // Only navigate if it's a different URL
+                    window.location.href = selectedUrl;
+                }
+            });
+        }
+
 
         // Function to convert a file to a Base64 string and return its MIME type and data
         const fileToBase64 = (file) => {
