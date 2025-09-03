@@ -1513,6 +1513,6 @@
 </body>
 </html>
 
-----------------------------------------------------------------------------------------
+-----------------------------------------------------------------------------------
 
-make this a PWA
+here in this code how can i add the feature to paste files into the text input box as attachment, and also drag and drop files.
