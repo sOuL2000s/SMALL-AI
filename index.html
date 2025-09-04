@@ -608,6 +608,16 @@
             border: 2px dashed var(--accent-primary-dark);
             box-shadow: 0 0 20px var(--accent-primary-dark), 0 0 30px var(--accent-primary-dark) inset;
         }
+
+        /* New: Drag and Drop visual feedback for chat input */
+        #chat-input.input-drag-over {
+            border-color: var(--accent-primary);
+            box-shadow: 0 0 0 2px var(--accent-primary);
+        }
+        body.dark #chat-input.input-drag-over {
+            border-color: var(--accent-primary-dark);
+            box-shadow: 0 0 0 2px var(--accent-primary-dark);
+        }
     </style>
 </head>
 <body class="antialiased dark">
@@ -768,8 +778,12 @@
                 voiceInputBtn.classList.add('voice-input-active');
                 updateButtonIcon(voiceInputBtn, 'mic-off', 'w-5 h-5'); // Change icon to indicate listening in dropdown
                 chatInput.placeholder = 'Listening... Speak now.';
-                finalTranscript = ''; // Clear previous transcript for a new session
-                chatInput.value = ''; // Clear input field
+                
+                // Store the current content of the input field as initial text
+                // New speech will be appended to this.
+                chatInput.dataset.initialText = chatInput.value.trim();
+                finalTranscript = ''; // Reset final transcript for this new recognition session
+                
                 chatActionsDropdown.classList.add('hidden'); // Hide dropdown when voice input starts
             };
 
@@ -782,7 +796,16 @@
                         interimTranscript += event.results[i][0].transcript;
                     }
                 }
-                chatInput.value = finalTranscript + interimTranscript; // Update input with current recognition
+                
+                // Update input field by combining initial typed text, accumulated final, and current interim
+                let currentCombinedText = chatInput.dataset.initialText;
+                // Add a space if initial text exists and there's new speech, AND if it doesn't already end with one.
+                if (currentCombinedText && (finalTranscript.trim() !== '' || interimTranscript.trim() !== '') && !currentCombinedText.endsWith(' ')) {
+                    currentCombinedText += ' ';
+                }
+                currentCombinedText += finalTranscript + interimTranscript;
+                
+                chatInput.value = currentCombinedText.trim(); // Trim to avoid leading/trailing spaces
                 chatInput.scrollLeft = chatInput.scrollWidth; // Scroll to end
             };
 
@@ -792,12 +815,15 @@
                 updateButtonIcon(voiceInputBtn, 'mic', 'w-5 h-5'); // Reset icon to mic in dropdown
                 chatInput.placeholder = 'Type your message or ask a question...';
 
-                // If there's a final transcript, populate the input field.
-                if (finalTranscript.trim() !== '') {
-                    chatInput.value = finalTranscript.trim(); // Ensure final transcript is in the input
-                } else if (chatInput.value.trim() === '') {
-                    // If recognition ended with no final transcript and input is empty, clear it
-                    chatInput.value = ''; 
+                // The input field's value should already be correctly set by onresult.
+                // Update the 'initialText' for any subsequent speech recognition sessions.
+                // This ensures that if the user starts voice input again, it appends to the current content.
+                chatInput.dataset.initialText = chatInput.value.trim();
+
+                // If the input was initially empty when STT started AND no final speech was recognized,
+                // then clear the input. Otherwise, leave the combined text.
+                if (chatInput.dataset.initialText === '' && finalTranscript.trim() === '') {
+                    chatInput.value = '';
                 }
             };
 
@@ -813,8 +839,12 @@
                     showError('Microphone access denied. Please allow microphone access in your browser settings.');
                 } else if (event.error === 'no-speech') {
                     console.log('No speech detected, recognition ended.');
-                    if (finalTranscript.trim() === '') {
+                    // If no speech was detected and initial input was empty, clear it.
+                    if (chatInput.dataset.initialText === '' && finalTranscript.trim() === '') {
                         chatInput.value = '';
+                    } else {
+                        // Otherwise, ensure the input retains the initial text.
+                        chatInput.value = chatInput.dataset.initialText;
                     }
                 } else if (event.error === 'network') {
                     showError('Speech recognition network error. This often means a firewall, proxy, or browser extension is blocking access to Google\'s speech services. Please try disabling extensions or testing in incognito mode.');
@@ -865,6 +895,12 @@
             });
         }
 
+        // Allowed file types for chat attachments
+        const allowedFileTypes = [
+            'image/', 'text/', 'application/pdf',
+            'application/json', 'text/csv', 'application/xml', 'text/markdown'
+        ];
+        const MAX_FILE_SIZE_MB = 20; // Example: Max file size for a single attachment
 
         // Function to convert a file to a Base64 string and return its MIME type and data
         const fileToBase64 = (file) => {
@@ -898,6 +934,41 @@
             }, 5000); // Hide after 5 seconds
         }
         
+        /**
+         * Centralized function to handle incoming files from various sources (input, drag-drop, paste).
+         * @param {FileList|File[]} filesList The files to process.
+         */
+        async function handleIncomingFiles(filesList) {
+            const filesToAdd = Array.from(filesList);
+            if (filesToAdd.length === 0) return;
+
+            for (const file of filesToAdd) {
+                // Basic file type and size validation
+                const isAllowedType = allowedFileTypes.some(type => file.type.startsWith(type)) || file.name.endsWith('.md');
+                const isAllowedSize = file.size <= MAX_FILE_SIZE_MB * 1024 * 1024;
+
+                if (!isAllowedType) {
+                    showError(`File type not supported: ${file.name} (${file.type}).`);
+                    continue; // Skip this file
+                }
+                if (!isAllowedSize) {
+                    showError(`File "${file.name}" is too large (${(file.size / (1024 * 1024)).toFixed(2)} MB). Max size is ${MAX_FILE_SIZE_MB} MB.`);
+                    continue; // Skip this file
+                }
+
+                try {
+                    const { mimeType, data } = await fileToBase64(file);
+                    chatAttachments.push({ file, mimeType, data, name: file.name });
+                } catch (error) {
+                    showError(`Failed to read file ${file.name}.`);
+                    console.error('File read error:', error);
+                }
+            }
+            displayChatAttachments();
+            chatInput.focus();
+        }
+
+
         // --- Marked.js Custom Renderer for Code Blocks ---
         const renderer = {
             code(code, lang) {
@@ -1029,31 +1100,7 @@
         
         // Event listener for chat file upload
         chatFileUpload.addEventListener('change', async (event) => {
-            const files = Array.from(event.target.files);
-            if (files.length > 0) {
-                for (const file of files) {
-                    // Basic file type validation for chat (allow images, text, pdf, csv, json, xml, md)
-                    const allowedTypes = [
-                        'image/', 'text/', 'application/pdf',
-                        'application/json', 'text/csv', 'application/xml', 'text/markdown'
-                    ];
-                    const isAllowed = allowedTypes.some(type => file.type.startsWith(type)) || file.name.endsWith('.md');
-
-                    if (isAllowed) {
-                        try {
-                            const { mimeType, data } = await fileToBase64(file);
-                            chatAttachments.push({ file, mimeType, data, name: file.name });
-                        } catch (error) {
-                            showError(`Failed to read chat file ${file.name}.`);
-                            console.error('Chat file read error:', error);
-                        }
-                    } else {
-                        showError(`File type not supported for chat: ${file.name} (${file.type}).`);
-                    }
-                }
-                displayChatAttachments();
-                chatInput.focus();
-            }
+            await handleIncomingFiles(event.target.files);
             chatActionsDropdown.classList.add('hidden'); // Hide dropdown after selection
         });
 
@@ -1138,6 +1185,10 @@
             
             // Clear input and attachment after sending
             chatInput.value = '';
+            // Reset dataset.initialText after sending
+            if (chatInput.dataset.initialText) {
+                chatInput.dataset.initialText = '';
+            }
             chatAttachments = [];
             chatFileUpload.value = ''; // Clear file input
             displayChatAttachments(); // Clear attachment previews
@@ -1197,7 +1248,9 @@
                 if (isVoiceInputActive) {
                     recognition.stop(); // Manually stop recognition
                 } else {
-                    finalTranscript = ''; // Reset transcript when starting a new session
+                    // When starting, store current typed text to append speech to it.
+                    chatInput.dataset.initialText = chatInput.value.trim();
+                    finalTranscript = ''; // Reset for new session
                     recognition.start();
                 }
             } else {
@@ -1219,7 +1272,7 @@
             }
         });
 
-        // Drag and Drop for Chat Window
+        // --- Drag and Drop for Main Chat Window (General File Input) ---
         mainChatWindow.addEventListener('dragover', (e) => {
             e.preventDefault();
             e.stopPropagation();
@@ -1236,33 +1289,49 @@
             e.preventDefault();
             e.stopPropagation();
             mainChatWindow.classList.remove('drag-over-active');
+            await handleIncomingFiles(e.dataTransfer.files);
+        });
 
-            const files = Array.from(e.dataTransfer.files);
-            if (files.length > 0) {
-                for (const file of files) {
-                    // Basic file type validation for chat (allow images, text, pdf, csv, json, xml, md)
-                    const allowedTypes = [
-                        'image/', 'text/', 'application/pdf',
-                        'application/json', 'text/csv', 'application/xml', 'text/markdown'
-                    ];
-                    const isAllowed = allowedTypes.some(type => file.type.startsWith(type)) || file.name.endsWith('.md');
+        // --- Drag and Drop for Chat Input Field ---
+        chatInput.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            chatInput.classList.add('input-drag-over');
+        });
 
-                    if (isAllowed) {
-                        try {
-                            const { mimeType, data } = await fileToBase64(file);
-                            chatAttachments.push({ file, mimeType, data, name: file.name });
-                        } catch (error) {
-                            showError(`Failed to read chat file ${file.name}.`);
-                            console.error('Chat file read error:', error);
-                        }
-                    } else {
-                        showError(`File type not supported for chat: ${file.name} (${file.type}).`);
+        chatInput.addEventListener('dragleave', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            chatInput.classList.remove('input-drag-over');
+        });
+
+        chatInput.addEventListener('drop', async (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            chatInput.classList.remove('input-drag-over');
+            await handleIncomingFiles(e.dataTransfer.files);
+        });
+
+        // --- Paste for Chat Input Field ---
+        chatInput.addEventListener('paste', async (event) => {
+            const items = event.clipboardData.items;
+            const pastedFiles = [];
+            for (let i = 0; i < items.length; i++) {
+                if (items[i].kind === 'file') {
+                    const file = items[i].getAsFile();
+                    if (file) {
+                        pastedFiles.push(file);
                     }
                 }
-                displayChatAttachments();
-                chatInput.focus();
             }
+            if (pastedFiles.length > 0) {
+                // Prevent default paste of file name/path if files are being handled
+                event.preventDefault(); 
+                await handleIncomingFiles(pastedFiles);
+            }
+            // If no files are pasted, let default text paste behavior continue.
         });
+
 
         // Event listener for the New Chat button
         newChatButton.addEventListener('click', () => {
@@ -1290,6 +1359,10 @@
             // Add initial AI greeting again
             appendChatMessage('ai', 'Hello! I am your AI assistant. How can I assist you today? Feel free to ask questions or attach relevant files for analysis related to Dream11 or any other topic!');
             chatInput.value = ''; // Clear chat input
+            // Reset dataset.initialText as well
+            if (chatInput.dataset.initialText) {
+                chatInput.dataset.initialText = '';
+            }
             chatInput.focus();
         });
         
