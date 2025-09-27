@@ -1,4 +1,4 @@
-const CACHE_NAME = 'small-ai-cache-v2'; // Update version for new deployments
+const CACHE_NAME = 'small-ai-cache-v2.1'; // Update version for new deployments
 const API_CACHE_NAME = 'small-ai-api-cache-v2'; // Dedicated cache for API responses (not used for Gemini)
 
 // List of essential app shell files to cache for offline use
