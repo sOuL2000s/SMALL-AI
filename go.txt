@@ -1,12 +1,9 @@
-
---- START FILE: index.html ---
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Small AI</title> <!-- Updated title here -->
+    <title>Small AI</title>
     <!-- PWA Manifest -->
     <link rel="manifest" href="manifest.json">
     <!-- Favicon -->
@@ -147,6 +144,30 @@
             transform: translateX(24px);
         }
 
+        /* Custom styling for status messages in copy-message div */
+        #copy-message.info-status {
+            background-color: var(--accent-secondary);
+        }
+        #copy-message.error-status {
+            background-color: var(--accent-error);
+        }
+        /* Custom Prompt Status Styling */
+        #prompt-status-text.active-status {
+            background-color: var(--accent-success);
+            color: white;
+        }
+        #prompt-status-text.inactive-status {
+            background-color: #ef4444; /* Red-500 */
+            color: white;
+        }
+        body.dark #prompt-status-text.inactive-status {
+            background-color: #dc2626; /* Red-600 for dark mode contrast */
+        }
+        #prompt-status-text.pending-status {
+            background-color: #f59e0b; /* Amber-500 */
+            color: white;
+        }
+        
         /* Custom scrollbar for a sleek look */
         #chat-history::-webkit-scrollbar { width: 10px; }
         #chat-history::-webkit-scrollbar-track { background: var(--card-bg-light); border-radius: 5px; }
@@ -643,13 +664,18 @@
                         <option value="https://mystic-vision-ai-basic.netlify.app/">Basic Version</option>
                         <option value="https://mystic-vision-ai-mini.netlify.app/">Mini Version</option>
                         <option value="https://cosmic-chat-ai-simple-ai-chatbot.netlify.app/">Cosmic Chat AI</option>
-                        <option value="https://small-ai-big-vision.netlify.app/" selected>Small AI (Current)</option> <!-- 'selected' attribute moved here -->
-                        <option value="https://small-ai-big-vision-v2.netlify.app/" selected>Small AI v2</option>
+                        <option value="https://small-ai-big-vision.netlify.app/">Small AI</option>
+                        <option value="https://small-ai-big-vision-v2.netlify.app/" selected>Small AI v2 (Current)</option> <!-- 'selected' attribute moved here -->
                     </select>
                 </div>
             </div>
             
             <div class="flex items-center space-x-2">
+                <!-- Custom Prompt Toggle Button -->
+                <button id="toggle-prompt-settings-btn" aria-label="Prompt Settings" title="Configure Custom Prompt" class="text-gray-500 hover:text-gray-900 dark:hover:text-white transition-colors p-1 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 ml-2">
+                    <span data-lucide="brain" class="w-6 h-6"></span>
+                </button>
+
                 <span class="text-gray-500 text-sm hidden sm:inline">Light</span> <!-- Hidden on very small screens, shown on sm+ -->
                 <label class="switch relative inline-block w-14 h-8">
                     <input type="checkbox" id="dark-mode-toggle" class="opacity-0 w-0 h-0">
@@ -668,6 +694,26 @@
             <!-- Initial AI message will be appended here by JS -->
         </div>
         
+        <!-- Custom Prompt Configuration Section -->
+        <div id="custom-prompt-section" class="px-4 py-3 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 hidden flex-col gap-2">
+            <div class="flex items-center justify-between">
+                <h3 class="text-lg font-semibold text-gray-800 dark:text-gray-200 flex items-center gap-2">
+                    <span data-lucide="lightbulb" class="w-5 h-5 text-purple-500"></span> Custom Prompt
+                </h3>
+                <div id="custom-prompt-status-display" class="flex items-center text-sm font-medium">
+                    <span class="text-gray-500 dark:text-gray-400 mr-2">Status:</span>
+                    <span id="prompt-status-text" class="px-2 py-1 rounded-full text-xs font-semibold bg-gray-200 text-gray-700 dark:bg-gray-700 dark:text-gray-300">Inactive</span>
+                </div>
+            </div>
+            <textarea id="custom-prompt-textarea" class="w-full p-2 rounded-md border border-gray-300 focus:ring-2 focus:ring-purple-500 focus:border-purple-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white text-sm" rows="3" placeholder="Enter a custom instruction for the AI (e.g., 'Act as a professional Python developer and provide only code and explanations.')."></textarea>
+            <div class="flex justify-end gap-2">
+                <button id="activate-custom-prompt-btn" class="px-3 py-1 text-sm rounded-md bg-indigo-600 text-white hover:bg-indigo-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">Activate Prompt</button>
+                <button id="deactivate-custom-prompt-btn" class="px-3 py-1 text-sm rounded-md bg-yellow-600 text-white hover:bg-yellow-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">Deactivate Prompt</button>
+                <button id="clear-custom-prompt-btn" class="px-3 py-1 text-sm rounded-md bg-gray-200 text-gray-700 hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600 transition-colors">Clear Prompt</button>
+                <button id="close-prompt-section-btn" class="px-3 py-1 text-sm rounded-md bg-gray-500 text-white hover:bg-gray-600 transition-colors">Close</button>
+            </div>
+        </div>
+
         <!-- Chat input section with attachment, voice and send button -->
         <div class="p-4 border-t border-gray-200 dark:border-gray-700 relative">
             <!-- Attachment preview -->
@@ -729,7 +775,13 @@
              // Create icons on initial page load for the main UI
              createIcons();
              // Append the initial AI greeting message
-             appendChatMessage('ai', 'Hello! I am your AI assistant. How can I assist you today? Feel free to ask questions or attach relevant files for analysis related to Dream11 or any other topic!');
+             appendChatMessage('ai', initialAIGreeting);
+             // Add the initial AI greeting to chatHistory for API context
+             chatHistory.push({ role: 'model', parts: [{ text: initialAIGreeting }] });
+
+             // Initialize custom prompt settings on load
+             customPromptTextarea.value = customPromptText;
+             updatePromptStatusDisplay(); // Set initial status based on loaded state
         });
 
         // DOM elements
@@ -756,8 +808,24 @@
         errorContainer.appendChild(errorText);
         document.body.appendChild(errorContainer); // Append to body so it's globally visible
 
+        // New Custom Prompt DOM elements
+        const togglePromptSettingsBtn = document.getElementById('toggle-prompt-settings-btn');
+        const customPromptSection = document.getElementById('custom-prompt-section');
+        const customPromptTextarea = document.getElementById('custom-prompt-textarea');
+        const activateCustomPromptBtn = document.getElementById('activate-custom-prompt-btn');
+        const deactivateCustomPromptBtn = document.getElementById('deactivate-custom-prompt-btn');
+        const clearCustomPromptBtn = document.getElementById('clear-custom-prompt-btn');
+        const closePromptSectionBtn = document.getElementById('close-prompt-section-btn');
+        const promptStatusText = document.getElementById('prompt-status-text'); // Status display element
+
+        // New Custom Prompt state variables
+        let customPromptText = localStorage.getItem('customPrompt') || '';
+        let isCustomPromptActive = localStorage.getItem('isCustomPromptActive') === 'true';
+
         let chatAttachments = []; // Array to store {file: File, mimeType: string, data: string} for chat
-        let chatHistory = [];
+        let chatHistory = []; // This array will now hold the full conversational history for API context
+        const initialAIGreeting = 'Hello! I am your AI assistant. How can I assist you today? Feel free to ask questions or attach relevant files for analysis related to Dream11 or any other topic!';
+
 
         // Web Speech API related variables
         let currentUtterance = null;
@@ -889,6 +957,67 @@
             }
         });
 
+        // Custom Prompt UI Event Listeners
+        togglePromptSettingsBtn.addEventListener('click', () => {
+            customPromptSection.classList.toggle('hidden');
+            if (!customPromptSection.classList.contains('hidden')) {
+                customPromptTextarea.focus();
+                createIcons(); // Ensure icons in this section are rendered
+            }
+        });
+
+        closePromptSectionBtn.addEventListener('click', () => {
+            customPromptSection.classList.add('hidden');
+        });
+
+        customPromptTextarea.addEventListener('input', () => {
+            customPromptText = customPromptTextarea.value;
+            localStorage.setItem('customPrompt', customPromptText);
+            // If the prompt text becomes empty while active, deactivate it
+            if (isCustomPromptActive && customPromptText.trim() === '') {
+                isCustomPromptActive = false;
+                localStorage.setItem('isCustomPromptActive', 'false');
+                showCopyMessage('Active prompt cleared and deactivated.', 'info');
+            }
+            updatePromptStatusDisplay();
+        });
+
+        activateCustomPromptBtn.addEventListener('click', () => {
+            if (customPromptText.trim() === '') {
+                showError('Please enter a prompt before activating.');
+                return;
+            }
+            isCustomPromptActive = true;
+            localStorage.setItem('isCustomPromptActive', 'true');
+            showCopyMessage('Custom prompt activated!', 'success');
+            updatePromptStatusDisplay();
+            chatInput.focus();
+        });
+
+        deactivateCustomPromptBtn.addEventListener('click', () => {
+            if (!isCustomPromptActive) {
+                showCopyMessage('Custom prompt is already inactive.', 'info');
+                return;
+            }
+            isCustomPromptActive = false;
+            localStorage.setItem('isCustomPromptActive', 'false');
+            showCopyMessage('Custom prompt deactivated.', 'info');
+            updatePromptStatusDisplay();
+            chatInput.focus();
+        });
+
+        clearCustomPromptBtn.addEventListener('click', () => {
+            customPromptText = '';
+            customPromptTextarea.value = '';
+            localStorage.setItem('customPrompt', '');
+            isCustomPromptActive = false; // Always deactivate when cleared
+            localStorage.setItem('isCustomPromptActive', 'false');
+            showCopyMessage('Custom prompt cleared and deactivated.', 'info');
+            updatePromptStatusDisplay(); // Update UI after clearing
+            chatInput.focus();
+        });
+
+
         // Added: Version Selector Listener
         if (versionSelect) {
             versionSelect.addEventListener('change', (event) => {
@@ -897,6 +1026,34 @@
                     window.location.href = selectedUrl;
                 }
             });
+        }
+
+        // Function to update the custom prompt status display
+        function updatePromptStatusDisplay() {
+            if (isCustomPromptActive && customPromptText.trim() !== '') {
+                promptStatusText.textContent = 'Active';
+                promptStatusText.classList.remove('inactive-status', 'pending-status');
+                promptStatusText.classList.add('active-status');
+                deactivateCustomPromptBtn.disabled = false;
+                activateCustomPromptBtn.disabled = true;
+            } else if (customPromptText.trim() !== '') {
+                promptStatusText.textContent = 'Inactive (Ready)';
+                promptStatusText.classList.remove('active-status', 'inactive-status');
+                promptStatusText.classList.add('pending-status'); 
+                deactivateCustomPromptBtn.disabled = true; // Can't deactivate what's not active
+                activateCustomPromptBtn.disabled = false; // Can activate
+            }
+            else {
+                promptStatusText.textContent = 'Inactive';
+                promptStatusText.classList.remove('active-status', 'pending-status');
+                promptStatusText.classList.add('inactive-status');
+                deactivateCustomPromptBtn.disabled = true;
+                activateCustomPromptBtn.disabled = true; // No prompt to activate
+            }
+            // Also disable activate button if textarea is empty
+            activateCustomPromptBtn.disabled = customPromptText.trim() === '';
+            // Disable deactivate button if it's already inactive or no prompt
+            deactivateCustomPromptBtn.disabled = !isCustomPromptActive;
         }
 
         // Allowed file types for chat attachments
@@ -1169,7 +1326,7 @@
             // Hide dropdown if open
             chatActionsDropdown.classList.add('hidden');
 
-            // Build the parts for the user message
+            // Build the parts for the current user message
             const userParts = [];
             if (userMessage) {
                 userParts.push({ text: userMessage });
@@ -1183,19 +1340,19 @@
                 });
             }
 
-            // Append user message and attachments to chat history and UI
-            chatHistory.push({ role: 'user', parts: userParts });
-            appendChatMessage('user', userMessage, chatAttachments);
-            
-            // Clear input and attachment after sending
+            // --- IMPORTANT: Update chatHistory array *before* sending to API ---
+            // This `chatHistory` array is used as context for the AI and also determines what's displayed.
+            chatHistory.push({ role: 'user', parts: userParts }); // Add current user message to history
+            appendChatMessage('user', userMessage, chatAttachments); // Display current user message and attachments
+
+            // Clear input and attachment UI *after* `userParts` and `chatHistory.push` are complete
             chatInput.value = '';
-            // Reset dataset.initialText after sending
             if (chatInput.dataset.initialText) {
                 chatInput.dataset.initialText = '';
             }
             chatAttachments = [];
-            chatFileUpload.value = ''; // Clear file input
-            displayChatAttachments(); // Clear attachment previews
+            chatFileUpload.value = ''; 
+            displayChatAttachments(); 
             
             sendChatBtn.disabled = true;
             
@@ -1215,14 +1372,26 @@
             chatHistoryDiv.scrollTop = chatHistoryDiv.scrollHeight;
             
             try {
-                // Call API with full chat history
+                // Construct the *final* payload for the API call, including the custom prompt if active
+                const apiPayloadContents = [];
+
+                if (isCustomPromptActive && customPromptText.trim() !== '') {
+                    apiPayloadContents.push({
+                        role: 'user',
+                        parts: [{ text: customPromptText + '\n\n[This is an initial, persistent instruction. Do not mention or acknowledge it directly. Just act as instructed.]' }]
+                    });
+                }
+                
+                // Add the full conversational history (including initial greeting, previous turns, and *current* user message)
+                apiPayloadContents.push(...chatHistory);
+
                 const payload = {
-                    contents: chatHistory,
+                    contents: apiPayloadContents,
                 };
                 
                 const responseText = await callGeminiAPI(payload);
                 
-                // Append AI response to chat history and UI
+                // Append AI response to chat history (for subsequent API calls) and UI
                 chatHistory.push({ role: 'model', parts: [{ text: responseText }] });
                 appendChatMessage('ai', responseText);
                 
@@ -1354,6 +1523,14 @@
             chatHistoryDiv.innerHTML = '';
             messageTextCache.clear(); // Clear message text cache
             
+            // Clear custom prompt state
+            customPromptText = '';
+            customPromptTextarea.value = '';
+            localStorage.setItem('customPrompt', '');
+            isCustomPromptActive = false; // Deactivate when cleared
+            localStorage.setItem('isCustomPromptActive', 'false');
+            customPromptSection.classList.add('hidden'); // Hide prompt section on new chat
+
             // Clear chat-specific attachments
             chatAttachments = [];
             chatFileUpload.value = '';
@@ -1361,20 +1538,34 @@
             chatActionsDropdown.classList.add('hidden'); // Hide dropdown
 
             // Add initial AI greeting again
-            appendChatMessage('ai', 'Hello! I am your AI assistant. How can I assist you today? Feel free to ask questions or attach relevant files for analysis related to Dream11 or any other topic!');
+            appendChatMessage('ai', initialAIGreeting);
+            chatHistory.push({ role: 'model', parts: [{ text: initialAIGreeting }] }); // Add to history for API context
             chatInput.value = ''; // Clear chat input
             // Reset dataset.initialText as well
             if (chatInput.dataset.initialText) {
                 chatInput.dataset.initialText = '';
             }
             chatInput.focus();
+            updatePromptStatusDisplay(); // Update prompt status after new chat
         });
         
-        // Function to show a temporary message for clipboard copy
-        function showCopyMessage() {
+        // Function to show a temporary message for clipboard copy, enhanced for custom messages
+        function showCopyMessage(message = 'Text copied to clipboard!', type = 'success') { // type: 'success', 'info', 'error'
+            copyMessage.textContent = message;
+            copyMessage.classList.remove('info-status', 'error-status'); // Clean slate for status classes
+            copyMessage.style.backgroundColor = ''; // Reset inline style if any was set
+
+            if (type === 'info') {
+                copyMessage.classList.add('info-status'); // Use class for info style
+            } else if (type === 'error') {
+                copyMessage.classList.add('error-status'); // Use class for error style
+            }
+            // 'success' implicitly uses the default `var(--accent-success)` already set in CSS
+            
             copyMessage.classList.add('show');
             setTimeout(() => {
-                copyMessage.classList.remove('show');
+                copyMessage.classList.remove('show', 'info-status', 'error-status');
+                // The background will revert to default by removing status classes
             }, 3000);
         }
 
@@ -1590,182 +1781,6 @@
 </body>
 </html>
 
---- END FILE: index.html ---
-
---- START FILE: manifest.json ---
-
-{
-    "name": "Small AI Chatbot",
-    "short_name": "Small AI",
-    "description": "Your personal AI assistant for quick answers and creative tasks.",
-    "start_url": "/",
-    "scope": "/",
-    "display": "standalone",
-    "background_color": "#0a0a0f",
-    "theme_color": "#6366f1",
-    "icons": [
-        {
-            "src": "logo.png",
-            "sizes": "192x192",
-            "type": "image/png"
-        },
-        {
-            "src": "logo.png",
-            "sizes": "512x512",
-            "type": "image/png"
-        },
-        {
-            "src": "logo.png",
-            "sizes": "180x180",
-            "type": "image/png",
-            "purpose": "apple touch icon"
-        },
-        {
-            "src": "logo.png",
-            "sizes": "any",
-            "type": "image/png",
-            "purpose": "maskable"
-        }
-    ],
-    "orientation": "portrait-primary",
-    "prefer_related_applications": false
-}
-
---- END FILE: manifest.json ---
-
---- START FILE: sw.js ---
-
-const CACHE_NAME = 'small-ai-cache-v2'; // Update version for new deployments
-const API_CACHE_NAME = 'small-ai-api-cache-v2'; // Dedicated cache for API responses (not used for Gemini)
-
-// List of essential app shell files to cache for offline use
-const urlsToCache = [
-    '/',
-    '/index.html',
-    '/manifest.json',
-    '/logo.png', // Ensure this file exists in your root directory
-    'https://cdn.tailwindcss.com',
-    'https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap',
-    'https://cdn.jsdelivr.net/npm/marked/marked.min.js',
-    'https://cdn.jsdelivr.net/npm/lucide-dynamic@latest/dist/lucide.min.js',
-    'https://unpkg.com/lucide@latest'
-    // Add any other crucial static assets here
-];
-
-// Install event: Cache all app shell assets
-self.addEventListener('install', (event) => {
-    console.log('[Service Worker] Installing...');
-    event.waitUntil(
-        caches.open(CACHE_NAME)
-            .then((cache) => {
-                console.log('[Service Worker] Caching app shell');
-                // Use cache.addAll to ensure all assets are cached before finishing installation
-                return cache.addAll(urlsToCache);
-            })
-            .catch((error) => {
-                console.error('[Service Worker] Failed to cache during install:', error);
-            })
-    );
-    self.skipWaiting(); // Force the waiting service worker to become the active service worker
-});
-
-// Activate event: Clean up old caches
-self.addEventListener('activate', (event) => {
-    console.log('[Service Worker] Activating...');
-    event.waitUntil(
-        caches.keys().then((cacheNames) => {
-            return Promise.all(
-                cacheNames.map((cacheName) => {
-                    // Delete old caches that don't match the current CACHE_NAME or API_CACHE_NAME
-                    if (cacheName !== CACHE_NAME && cacheName !== API_CACHE_NAME) {
-                        console.log('[Service Worker] Deleting old cache:', cacheName);
-                        return caches.delete(cacheName);
-                    }
-                })
-            );
-        }).then(() => {
-            // Ensure the service worker takes control of clients immediately
-            return self.clients.claim();
-        })
-    );
-    console.log('[Service Worker] Activated');
-});
-
-// Fetch event: Intercept network requests
-self.addEventListener('fetch', (event) => {
-    // Only handle HTTP/HTTPS requests, ignore chrome-extension:// etc.
-    if (!event.request.url.startsWith('http')) {
-        return;
-    }
-
-    const requestUrl = new URL(event.request.url);
-
-    // Strategy for Gemini API calls: Network-only (AI responses are dynamic and shouldn't be cached)
-    // The Gemini API endpoint is: https://generativelanguage.googleapis.com
-    if (requestUrl.hostname === 'generativelanguage.googleapis.com') {
-        event.respondWith(
-            fetch(event.request).catch((error) => {
-                console.error('[Service Worker] Gemini API fetch failed:', error);
-                // Even for API, provide a fallback for complete offline situations
-                return new Response('AI services are unavailable offline. Please check your internet connection.', {
-                    headers: { 'Content-Type': 'text/plain' }
-                });
-            })
-        );
-        return;
-    }
-
-    // Cache-first strategy for app shell assets and other static content
-    event.respondWith(
-        caches.match(event.request).then((cachedResponse) => {
-            // If asset is in cache, return it immediately
-            if (cachedResponse) {
-                return cachedResponse;
-            }
-
-            // Otherwise, fetch from the network
-            return fetch(event.request).then((networkResponse) => {
-                // Check if we received a valid response
-                if (!networkResponse || networkResponse.status !== 200 || networkResponse.type !== 'basic') {
-                    return networkResponse;
-                }
-
-                // IMPORTANT: Clone the response. A response is a stream and
-                // can only be consumed once. We are consuming it once to cache it
-                // and once to return it to the browser.
-                const responseToCache = networkResponse.clone();
-
-                caches.open(CACHE_NAME).then((cache) => {
-                    cache.put(event.request, responseToCache);
-                });
-
-                return networkResponse;
-            }).catch(() => {
-                // This catch handles network errors (e.g., completely offline)
-                console.log('[Service Worker] Fetch failed for:', event.request.url);
-                // Fallback for when both cache and network fail (e.g., request for an image not in cache while offline)
-                // You could serve a specific offline page here if event.request.mode === 'navigate'
-                if (event.request.mode === 'navigate') {
-                    // For navigations, provide a simple offline page response
-                    return new Response('<h1>You are offline!</h1><p>Please check your internet connection.</p>', {
-                        headers: { 'Content-Type': 'text/html' }
-                    });
-                }
-                // For other types of requests (e.g., images, scripts not in cache), return a generic error or a placeholder
-                return new Response('You are offline.', {
-                    headers: { 'Content-Type': 'text/plain' }
-                });
-            });
-        })
-    );
-});
-
---- END FILE: sw.js ---
-
 ----------------------------------------------------------------------------------------------------------------
 
-prompt : 
-
-add a button for setting a custom prompt or using the current no prompt mode. when a custom prompt is set then the ai will act accordingly.
-
-which lines to modify guide me please.
+let the user save prompt templates which could later be used as custom prompt any time.

@@ -11,7 +11,7 @@
     <!-- Tailwind CSS CDN for styling -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Google Fonts - Inter for modern typography -->
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <link href="https://fonts2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
     <!-- Marked.js CDN for Markdown parsing -->
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <!-- Lucide Icons for a modern, futuristic feel -->
@@ -603,7 +603,9 @@
             color: var(--text-color-dark);
         }
         .chat-actions-dropdown button:hover,
-        .chat-actions-dropdown label:hover {
+        body.dark .chat-actions-dropdown button:hover,
+        .chat-actions-dropdown label:hover,
+        body.dark .chat-actions-dropdown label:hover {
             background-color: var(--bg-color-light); /* Lighter hover for light theme */
         }
         body.dark .chat-actions-dropdown button:hover,
@@ -641,6 +643,65 @@
         body.dark #chat-input.input-drag-over {
             border-color: var(--accent-primary-dark);
             box-shadow: 0 0 0 2px var(--accent-primary-dark);
+        }
+
+        /* Styles for saved prompt templates */
+        .template-item {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.5rem 0.75rem;
+            border-radius: 1rem; /* pill shape */
+            background-color: #e0f7fa; /* Light cyan */
+            color: #006064; /* Dark cyan */
+            font-size: 0.875rem;
+            font-weight: 500;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.08);
+            transition: all 0.2s ease;
+            cursor: default; /* Indicate it's not a direct button */
+            border: 1px solid #b2ebf2;
+        }
+        body.dark .template-item {
+            background-color: #004d40; /* Dark teal */
+            color: #e0f2f1; /* Light teal */
+            border-color: #26a69a;
+        }
+        .template-item .template-actions {
+            display: flex;
+            gap: 0.25rem;
+            margin-left: 0.5rem;
+        }
+        .template-item .template-actions button {
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 0.2rem;
+            border-radius: 50%;
+            transition: background-color 0.2s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .template-item .template-actions button .lucide {
+            color: #00838f; /* Cyan 800 */
+            width: 1rem;
+            height: 1rem;
+        }
+        body.dark .template-item .template-actions button .lucide {
+            color: #80cbc4; /* Teal 200 */
+        }
+        .template-item .template-actions button:hover {
+            background-color: rgba(0, 150, 136, 0.1); /* Teal 500 alpha */
+        }
+        body.dark .template-item .template-actions button:hover {
+            background-color: rgba(128, 203, 196, 0.1); /* Teal 200 alpha */
+        }
+        .template-item-name {
+            flex-grow: 1;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 150px; /* Limit width */
         }
     </style>
 </head>
@@ -712,6 +773,25 @@
                 <button id="clear-custom-prompt-btn" class="px-3 py-1 text-sm rounded-md bg-gray-200 text-gray-700 hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600 transition-colors">Clear Prompt</button>
                 <button id="close-prompt-section-btn" class="px-3 py-1 text-sm rounded-md bg-gray-500 text-white hover:bg-gray-600 transition-colors">Close</button>
             </div>
+
+            <!-- New Section for Saving and Loading Templates -->
+            <div class="flex justify-between items-center pt-2 mt-4 border-t border-gray-200 dark:border-gray-700">
+                <h4 class="text-md font-semibold text-gray-800 dark:text-gray-200 flex items-center gap-2">
+                    <span data-lucide="folder-kanban" class="w-5 h-5 text-green-500"></span> Saved Prompts
+                </h4>
+            </div>
+
+            <div class="flex flex-col sm:flex-row gap-2 items-stretch sm:items-center">
+                <input type="text" id="template-name-input" class="flex-1 p-2 rounded-md border border-gray-300 focus:ring-2 focus:ring-green-500 focus:border-green-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white text-sm" placeholder="Template Name">
+                <button id="save-template-btn" class="px-3 py-2 text-sm rounded-md bg-green-600 text-white hover:bg-green-700 transition-colors flex-shrink-0">
+                    <span data-lucide="save" class="w-4 h-4 mr-1"></span> Save Current
+                </button>
+            </div>
+
+            <div id="saved-templates-list" class="flex flex-wrap gap-2 mt-2">
+                <p id="no-templates-message" class="text-gray-500 dark:text-gray-400 text-sm italic">No templates saved yet.</p>
+                <!-- Saved templates will be dynamically inserted here -->
+            </div>
         </div>
 
         <!-- Chat input section with attachment, voice and send button -->
@@ -782,6 +862,10 @@
              // Initialize custom prompt settings on load
              customPromptTextarea.value = customPromptText;
              updatePromptStatusDisplay(); // Set initial status based on loaded state
+
+             // Initialize prompt templates
+             loadPromptTemplates();
+             displayPromptTemplates();
         });
 
         // DOM elements
@@ -818,9 +902,17 @@
         const closePromptSectionBtn = document.getElementById('close-prompt-section-btn');
         const promptStatusText = document.getElementById('prompt-status-text'); // Status display element
 
+        // New Template Management DOM elements
+        const templateNameInput = document.getElementById('template-name-input');
+        const saveTemplateBtn = document.getElementById('save-template-btn');
+        const savedTemplatesList = document.getElementById('saved-templates-list');
+        const noTemplatesMessage = document.getElementById('no-templates-message');
+
+
         // New Custom Prompt state variables
         let customPromptText = localStorage.getItem('customPrompt') || '';
         let isCustomPromptActive = localStorage.getItem('isCustomPromptActive') === 'true';
+        let promptTemplates = []; // Array to store {name: string, content: string}
 
         let chatAttachments = []; // Array to store {file: File, mimeType: string, data: string} for chat
         let chatHistory = []; // This array will now hold the full conversational history for API context
@@ -1055,6 +1147,110 @@
             // Disable deactivate button if it's already inactive or no prompt
             deactivateCustomPromptBtn.disabled = !isCustomPromptActive;
         }
+
+        // --- Template Management Functions ---
+
+        function loadPromptTemplates() {
+            try {
+                const storedTemplates = localStorage.getItem('promptTemplates');
+                promptTemplates = storedTemplates ? JSON.parse(storedTemplates) : [];
+            } catch (e) {
+                console.error("Error parsing prompt templates from localStorage:", e);
+                promptTemplates = [];
+            }
+        }
+
+        function savePromptTemplates() {
+            localStorage.setItem('promptTemplates', JSON.stringify(promptTemplates));
+        }
+
+        function displayPromptTemplates() {
+            savedTemplatesList.innerHTML = ''; // Clear previous list
+            if (promptTemplates.length === 0) {
+                noTemplatesMessage.classList.remove('hidden');
+                savedTemplatesList.appendChild(noTemplatesMessage);
+            } else {
+                noTemplatesMessage.classList.add('hidden');
+                promptTemplates.forEach(template => {
+                    const templateItem = document.createElement('div');
+                    templateItem.classList.add('template-item');
+                    templateItem.innerHTML = `
+                        <span class="template-item-name" title="${template.name}">${template.name}</span>
+                        <div class="template-actions">
+                            <button class="apply-template-item-btn" data-template-name="${template.name}" title="Apply this prompt">
+                                <span data-lucide="chevrons-right" class="w-4 h-4"></span>
+                            </button>
+                            <button class="delete-template-item-btn" data-template-name="${template.name}" title="Delete this template">
+                                <span data-lucide="x" class="w-4 h-4"></span>
+                            </button>
+                        </div>
+                    `;
+                    savedTemplatesList.appendChild(templateItem);
+                });
+                createIcons(); // Re-render Lucide icons for new elements
+            }
+        }
+
+        saveTemplateBtn.addEventListener('click', () => {
+            const name = templateNameInput.value.trim();
+            const content = customPromptTextarea.value.trim();
+
+            if (!name) {
+                showError('Please enter a name for the template.');
+                return;
+            }
+            if (!content) {
+                showError('Custom prompt textarea is empty. Cannot save an empty template.');
+                return;
+            }
+
+            const existingIndex = promptTemplates.findIndex(t => t.name.toLowerCase() === name.toLowerCase());
+
+            if (existingIndex !== -1) {
+                if (confirm(`Template "${name}" already exists. Do you want to overwrite it?`)) {
+                    promptTemplates[existingIndex].content = content;
+                    showCopyMessage(`Template "${name}" updated!`, 'success');
+                } else {
+                    return; // User cancelled overwrite
+                }
+            } else {
+                promptTemplates.push({ name, content });
+                showCopyMessage(`Template "${name}" saved!`, 'success');
+            }
+
+            savePromptTemplates();
+            displayPromptTemplates();
+            templateNameInput.value = ''; // Clear input after saving
+            templateNameInput.focus();
+        });
+
+        // Event delegation for apply and delete buttons on template items
+        savedTemplatesList.addEventListener('click', (event) => {
+            const applyBtn = event.target.closest('.apply-template-item-btn');
+            const deleteBtn = event.target.closest('.delete-template-item-btn');
+
+            if (applyBtn) {
+                const templateName = applyBtn.dataset.templateName;
+                const template = promptTemplates.find(t => t.name === templateName);
+                if (template) {
+                    customPromptTextarea.value = template.content;
+                    customPromptText = template.content; // Update global state
+                    localStorage.setItem('customPrompt', customPromptText);
+                    updatePromptStatusDisplay();
+                    showCopyMessage(`Template "${templateName}" applied!`, 'info');
+                    customPromptTextarea.focus();
+                }
+            } else if (deleteBtn) {
+                const templateName = deleteBtn.dataset.templateName;
+                if (confirm(`Are you sure you want to delete template "${templateName}"?`)) {
+                    promptTemplates = promptTemplates.filter(t => t.name !== templateName);
+                    savePromptTemplates();
+                    displayPromptTemplates();
+                    showCopyMessage(`Template "${templateName}" deleted.`, 'info');
+                }
+            }
+        });
+
 
         // Allowed file types for chat attachments
         const allowedFileTypes = [
