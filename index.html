@@ -1913,13 +1913,13 @@
             // Do NOT expose your API key directly in production applications.
             // For production, consider using a backend proxy to secure your API key.
             // <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
-            const apiKey = "AIzaSyCzx6ReMk8ohPJcCjGwHHzu7SvFccJqAbA"; 
+            const apiKey = "AIzaSyD7KfCynGxjHbPhr8bvP8Se0l8KrtyO0Ks"; 
 
             if (apiKey === "YOUR_GEMINI_API_KEY" || !apiKey || apiKey === "") { 
                 throw new Error("API Key is not set or is the default placeholder. Please replace 'YOUR_GEMINI_API_KEY' in the script with your actual Gemini API key.");
             }
 
-            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`;
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
 
             let response;
             let result;
