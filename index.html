@@ -773,25 +773,7 @@
                 <button id="clear-custom-prompt-btn" class="px-3 py-1 text-sm rounded-md bg-gray-200 text-gray-700 hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600 transition-colors">Clear Prompt</button>
                 <button id="close-prompt-section-btn" class="px-3 py-1 text-sm rounded-md bg-gray-500 text-white hover:bg-gray-600 transition-colors">Close</button>
             </div>
-
-            <!-- New Section for Saving and Loading Templates -->
-            <div class="flex justify-between items-center pt-2 mt-4 border-t border-gray-200 dark:border-gray-700">
-                <h4 class="text-md font-semibold text-gray-800 dark:text-gray-200 flex items-center gap-2">
-                    <span data-lucide="folder-kanban" class="w-5 h-5 text-green-500"></span> Saved Prompts
-                </h4>
-            </div>
-
-            <div class="flex flex-col sm:flex-row gap-2 items-stretch sm:items-center">
-                <input type="text" id="template-name-input" class="flex-1 p-2 rounded-md border border-gray-300 focus:ring-2 focus:ring-green-500 focus:border-green-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white text-sm" placeholder="Template Name">
-                <button id="save-template-btn" class="px-3 py-2 text-sm rounded-md bg-green-600 text-white hover:bg-green-700 transition-colors flex-shrink-0">
-                    <span data-lucide="save" class="w-4 h-4 mr-1"></span> Save Current
-                </button>
-            </div>
-
-            <div id="saved-templates-list" class="flex flex-wrap gap-2 mt-2">
-                <p id="no-templates-message" class="text-gray-500 dark:text-gray-400 text-sm italic">No templates saved yet.</p>
-                <!-- Saved templates will be dynamically inserted here -->
-            </div>
+            
             <!-- NEW: API Key Configuration Section -->
             <div class="flex justify-between items-center pt-2 mt-4 border-t border-gray-200 dark:border-gray-700">
                 <h4 class="text-md font-semibold text-gray-800 dark:text-gray-200 flex items-center gap-2">
@@ -810,6 +792,26 @@
                 <button id="clear-api-key-btn" class="px-3 py-2 text-sm rounded-md bg-gray-500 text-white hover:bg-gray-600 transition-colors flex-shrink-0">
                     <span data-lucide="trash-2" class="w-4 h-4 mr-1"></span> Clear Key
                 </button>
+            </div>
+            <!-- End API Key Section -->
+
+            <!-- New Section for Saving and Loading Templates -->
+            <div class="flex justify-between items-center pt-2 mt-4 border-t border-gray-200 dark:border-gray-700">
+                <h4 class="text-md font-semibold text-gray-800 dark:text-gray-200 flex items-center gap-2">
+                    <span data-lucide="folder-kanban" class="w-5 h-5 text-green-500"></span> Saved Prompts
+                </h4>
+            </div>
+
+            <div class="flex flex-col sm:flex-row gap-2 items-stretch sm:items-center">
+                <input type="text" id="template-name-input" class="flex-1 p-2 rounded-md border border-gray-300 focus:ring-2 focus:ring-green-500 focus:border-green-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white text-sm" placeholder="Template Name">
+                <button id="save-template-btn" class="px-3 py-2 text-sm rounded-md bg-green-600 text-white hover:bg-green-700 transition-colors flex-shrink-0">
+                    <span data-lucide="save" class="w-4 h-4 mr-1"></span> Save Current
+                </button>
+            </div>
+
+            <div id="saved-templates-list" class="flex flex-wrap gap-2 mt-2">
+                <p id="no-templates-message" class="text-gray-500 dark:text-gray-400 text-sm italic">No templates saved yet.</p>
+                <!-- Saved templates will be dynamically inserted here -->
             </div>
         </div>
 
@@ -873,10 +875,17 @@
         window.addEventListener('load', () => {
              // Create icons on initial page load for the main UI
              createIcons();
-             // Append the initial AI greeting message
-             appendChatMessage('ai', initialAIGreeting);
-             // Add the initial AI greeting to chatHistory for API context
-             chatHistory.push({ role: 'model', parts: [{ text: initialAIGreeting }] });
+             
+             // --- NEW: Load History, otherwise start fresh ---
+             const loaded = loadChatHistory();
+             
+             if (!loaded) {
+                 // If no history found, append the initial AI greeting message
+                 appendChatMessage('ai', initialAIGreeting);
+                 // Add the initial AI greeting to chatHistory for API context
+                 chatHistory.push({ role: 'model', parts: [{ text: initialAIGreeting }] });
+                 saveChatHistory(); // Save the initial state
+             }
 
              // Initialize custom prompt settings on load
              customPromptTextarea.value = customPromptText;
@@ -885,6 +894,9 @@
              // Initialize prompt templates
              loadPromptTemplates();
              displayPromptTemplates();
+             
+             // Initialize API Key status (from previous step's logic)
+             updateApiKeyStatusDisplay();
         });
 
         // DOM elements
@@ -926,25 +938,28 @@
         const saveTemplateBtn = document.getElementById('save-template-btn');
         const savedTemplatesList = document.getElementById('saved-templates-list');
         const noTemplatesMessage = document.getElementById('no-templates-message');
-
-
-        // New Custom Prompt state variables
-        let customPromptText = localStorage.getItem('customPrompt') || '';
-        let isCustomPromptActive = localStorage.getItem('isCustomPromptActive') === 'true';
-        let promptTemplates = []; // Array to store {name: string, content: string}
-
-        let chatAttachments = []; // Array to store {file: File, mimeType: string, data: string} for chat
-        let chatHistory = []; // This array will now hold the full conversational history for API context
-        const initialAIGreeting = 'Hello! I am your AI assistant. How can I assist you today? Feel free to ask questions or attach relevant files for analysis related to Dream11 or any other topic!';
-
+        
         // NEW API Key DOM elements
         const apiKeyInput = document.getElementById('api-key-input');
         const saveApiKeyBtn = document.getElementById('save-api-key-btn');
         const clearApiKeyBtn = document.getElementById('clear-api-key-btn');
         const apiKeyStatusText = document.getElementById('api-key-status-text');
 
-        // NEW API Key state variables
-        let userApiKey = localStorage.getItem('userGeminiApiKey') || '';
+        // Local Storage Keys
+        const CHAT_HISTORY_KEY = 'chatHistory'; 
+        const API_KEY_STORAGE_KEY = 'userGeminiApiKey'; 
+
+
+        // State variables
+        let customPromptText = localStorage.getItem('customPrompt') || '';
+        let isCustomPromptActive = localStorage.getItem('isCustomPromptActive') === 'true';
+        let promptTemplates = []; // Array to store {name: string, content: string}
+        let userApiKey = localStorage.getItem(API_KEY_STORAGE_KEY) || ''; // Load API Key from storage
+
+        let chatAttachments = []; // Array to store {file: File, mimeType: string, data: string} for chat
+        let chatHistory = []; // This array will now hold the full conversational history for API context
+        const initialAIGreeting = 'Hello! I am your AI assistant. How can I assist you today? Feel free to ask questions or attach relevant files for analysis related to Dream11 or any other topic!';
+
 
         // Web Speech API related variables
         let currentUtterance = null;
@@ -1082,6 +1097,7 @@
             if (!customPromptSection.classList.contains('hidden')) {
                 customPromptTextarea.focus();
                 createIcons(); // Ensure icons in this section are rendered
+                updateApiKeyStatusDisplay(); // Refresh key status when opening
             }
         });
 
@@ -1174,7 +1190,7 @@
             // Disable deactivate button if it's already inactive or no prompt
             deactivateCustomPromptBtn.disabled = !isCustomPromptActive;
         }
-
+        
         // --- API Key Management Functions ---
 
         function updateApiKeyStatusDisplay() {
@@ -1193,25 +1209,20 @@
             }
         }
 
-        // Initialize API Key state on load
-        window.addEventListener('load', () => {
-             // ... existing load logic ...
-             updateApiKeyStatusDisplay(); // Initialize key status
-        });
-
-
         // Event listener for Save API Key button
         saveApiKeyBtn.addEventListener('click', () => {
             // If the user hasn't typed anything new (e.g., if it shows '••••...'), ignore.
-            if (apiKeyInput.value === '••••••••••••••••••••••••••••••••••••••••') {
-                showCopyMessage('API key already stored.', 'info');
-                return;
+            if (apiKeyInput.value.length < 10 && userApiKey) { // Check length to see if they typed the placeholder value
+                 if (apiKeyInput.value === '••••••••••••••••••••••••••••••••••••••••') {
+                    showCopyMessage('API key already stored.', 'info');
+                    return;
+                }
             }
-
+            
             const newKey = apiKeyInput.value.trim();
             if (newKey && newKey.startsWith('AIza')) {
                 userApiKey = newKey;
-                localStorage.setItem('userGeminiApiKey', userApiKey);
+                localStorage.setItem(API_KEY_STORAGE_KEY, userApiKey);
                 updateApiKeyStatusDisplay();
                 showCopyMessage('Gemini API Key saved successfully!', 'success');
             } else {
@@ -1222,7 +1233,7 @@
         // Event listener for Clear API Key button
         clearApiKeyBtn.addEventListener('click', () => {
             userApiKey = '';
-            localStorage.removeItem('userGeminiApiKey');
+            localStorage.removeItem(API_KEY_STORAGE_KEY);
             updateApiKeyStatusDisplay();
             showCopyMessage('Gemini API Key cleared.', 'info');
         });
@@ -1233,16 +1244,81 @@
                 apiKeyInput.value = '';
             }
         });
+        
+        // --- Chat History Persistence Functions ---
 
-        // If the custom prompt section is opened, ensure icons are created and key status is updated
-        togglePromptSettingsBtn.addEventListener('click', () => {
-            customPromptSection.classList.toggle('hidden');
-            if (!customPromptSection.classList.contains('hidden')) {
-                customPromptTextarea.focus();
-                createIcons(); 
-                updateApiKeyStatusDisplay(); // Refresh key status when opening
+        /**
+         * Saves the current chat history array to local storage.
+         */
+        function saveChatHistory() {
+            try {
+                // Save the chatHistory array (which includes user messages, AI responses, and attachments data)
+                localStorage.setItem(CHAT_HISTORY_KEY, JSON.stringify(chatHistory));
+            } catch (e) {
+                console.error("Error saving chat history to localStorage:", e);
+                // Note: We don't use showError here as it might spam the user
             }
-        });
+        }
+
+        /**
+         * Loads chat history from local storage and re-renders the messages.
+         * @returns {boolean} True if history was loaded, false otherwise.
+         */
+        function loadChatHistory() {
+            const storedHistory = localStorage.getItem(CHAT_HISTORY_KEY);
+            if (!storedHistory) {
+                return false;
+            }
+
+            try {
+                const loadedHistory = JSON.parse(storedHistory);
+                chatHistory = loadedHistory; // Set the global state array
+                
+                // Re-render all messages from the loaded history
+                loadedHistory.forEach(message => {
+                    const role = message.role;
+                    // Find the text part 
+                    const textPart = message.parts.find(p => p.text)?.text || '';
+                    
+                    let attachments = [];
+                    if (role === 'user') {
+                        // Extract attachments (Base64 encoded data) for user messages
+                        attachments = message.parts
+                            .filter(p => p.inlineData)
+                            .map(p => {
+                                // Reconstruct the attachment object for appendChatMessage to display
+                                const mimeType = p.inlineData.mimeType;
+                                const data = p.inlineData.data;
+                                // Provide a generic name for display, as the original file name is not persisted 
+                                const name = mimeType.includes('image/') ? 'Image' : mimeType.split('/')[1] || 'File';
+                                
+                                return { 
+                                    mimeType: mimeType, 
+                                    data: data, 
+                                    name: name, 
+                                    file: null // Original File object is not persisted
+                                };
+                            });
+                    }
+
+                    // Append message to UI
+                    appendChatMessage(role, textPart, attachments);
+                });
+
+                showCopyMessage('Previous conversation loaded.', 'info');
+                return true;
+
+            } catch (e) {
+                console.error("Error loading chat history:", e);
+                showError("Failed to load saved chat history.");
+                // Clear corrupted history
+                localStorage.removeItem(CHAT_HISTORY_KEY);
+                return false;
+            }
+        }
+        
+        // --- End Chat History Persistence Functions ---
+
 
         // --- Template Management Functions ---
 
@@ -1500,14 +1576,18 @@
                 if (attachments.length > 0) {
                     contentHTML += `<div class="mt-2 flex flex-wrap gap-2">`;
                     attachments.forEach(attachment => {
+                        // Use the data (base64) that was persisted
+                        const srcUrl = `data:${attachment.mimeType};base64,${attachment.data}`;
+                        const name = attachment.name || 'File';
+
                         if (attachment.mimeType.startsWith('image/')) {
-                            contentHTML += `<img src="data:${attachment.mimeType};base64,${attachment.data}" alt="${attachment.name || 'User attachment'}" class="chat-image w-24 h-24 object-cover">`;
+                            contentHTML += `<img src="${srcUrl}" alt="${name}" class="chat-image w-24 h-24 object-cover">`;
                         } else {
                             // For non-image files, display an icon and file name
                             contentHTML += `
                                 <div class="flex items-center space-x-1 p-2 bg-gray-100 dark:bg-gray-600 rounded-md text-sm">
                                     <span data-lucide="${getFileIcon(attachment.mimeType)}" class="w-4 h-4 flex-shrink-0"></span>
-                                    <span class="truncate max-w-[120px]">${attachment.name || 'File'}</span>
+                                    <span class="truncate max-w-[120px]">${name}</span>
                                 </div>
                             `;
                         }
@@ -1633,9 +1713,9 @@
             }
 
             // --- IMPORTANT: Update chatHistory array *before* sending to API ---
-            // This `chatHistory` array is used as context for the AI and also determines what's displayed.
             chatHistory.push({ role: 'user', parts: userParts }); // Add current user message to history
             appendChatMessage('user', userMessage, chatAttachments); // Display current user message and attachments
+            saveChatHistory(); // <<< SAVE 1: Save after user message sent
 
             // Clear input and attachment UI *after* `userParts` and `chatHistory.push` are complete
             chatInput.value = '';
@@ -1686,6 +1766,7 @@
                 // Append AI response to chat history (for subsequent API calls) and UI
                 chatHistory.push({ role: 'model', parts: [{ text: responseText }] });
                 appendChatMessage('ai', responseText);
+                saveChatHistory(); // <<< SAVE 2: Save after AI response received
                 
             } catch (error) {
                 console.error('Chat API call failed:', error);
@@ -1811,11 +1892,14 @@
                 recognition.stop();
             }
 
-            chatHistory = []; // Clear chat history
+            chatHistory = []; // Clear in-memory chat history
             chatHistoryDiv.innerHTML = '';
             messageTextCache.clear(); // Clear message text cache
             
-            // Clear custom prompt state
+            // --- CLEAR PERSISTENCE ---
+            localStorage.removeItem(CHAT_HISTORY_KEY); 
+            
+            // Clear custom prompt state (keep this logic as it saves the prompt template itself)
             customPromptText = '';
             customPromptTextarea.value = '';
             localStorage.setItem('customPrompt', '');
@@ -1832,6 +1916,8 @@
             // Add initial AI greeting again
             appendChatMessage('ai', initialAIGreeting);
             chatHistory.push({ role: 'model', parts: [{ text: initialAIGreeting }] }); // Add to history for API context
+            saveChatHistory(); // Save the new initial state
+
             chatInput.value = ''; // Clear chat input
             // Reset dataset.initialText as well
             if (chatInput.dataset.initialText) {
