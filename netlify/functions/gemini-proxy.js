@@ -12,18 +12,10 @@ exports.handler = async (event, context) => {
         };
     }
 
-    // 2. Get API Key from environment variables (SECURE!)
-    const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
+    // 2. Get API Key from environment variables (Server key - fallback)
+    const SERVER_GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 
-    if (!GEMINI_API_KEY) {
-        console.error("GEMINI_API_KEY is not set in Netlify environment variables.");
-        return {
-            statusCode: 500,
-            body: JSON.stringify({ error: 'Server configuration error: API key missing.' }),
-        };
-    }
-
-    // 3. Parse Request Body
+    // 3. Parse Request Body (moved up to check for user key)
     let payload;
     try {
         payload = JSON.parse(event.body);
@@ -33,10 +25,29 @@ exports.handler = async (event, context) => {
             body: JSON.stringify({ error: 'Invalid JSON payload.' }),
         };
     }
+    
+    // 2.1 Check for user-provided key (Priority 1)
+    const USER_GEMINI_API_KEY = payload.userApiKey;
+    
+    // Determine the key to use: User key > Server key (if available)
+    const API_KEY_TO_USE = USER_GEMINI_API_KEY || SERVER_GEMINI_API_KEY;
 
+    if (!API_KEY_TO_USE) {
+        console.error("No API key provided by user or found on server.");
+        return {
+            statusCode: 401,
+            body: JSON.stringify({ error: 'API key required. Please configure your key on the frontend or ensure the server key is set.' }),
+        };
+    }
+
+    // IMPORTANT: Remove the userApiKey from the payload before forwarding 
+    // it to the Gemini API, as it is only needed for authentication in the URL.
+    delete payload.userApiKey; 
+    
     // 4. Construct API URL
     const model = 'gemini-2.5-flash-preview-09-2025';
-    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${GEMINI_API_KEY}`;
+    // Use the determined key in the URL
+    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${API_KEY_TO_USE}`;
 
     try {
         // 5. Call the Gemini API using native fetch

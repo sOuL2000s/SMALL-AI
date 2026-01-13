@@ -792,6 +792,25 @@
                 <p id="no-templates-message" class="text-gray-500 dark:text-gray-400 text-sm italic">No templates saved yet.</p>
                 <!-- Saved templates will be dynamically inserted here -->
             </div>
+            <!-- NEW: API Key Configuration Section -->
+            <div class="flex justify-between items-center pt-2 mt-4 border-t border-gray-200 dark:border-gray-700">
+                <h4 class="text-md font-semibold text-gray-800 dark:text-gray-200 flex items-center gap-2">
+                    <span data-lucide="key" class="w-5 h-5 text-red-500"></span> User API Key (Optional)
+                </h4>
+                <div id="api-key-status-display" class="flex items-center text-sm font-medium">
+                    <span class="text-gray-500 dark:text-gray-400 mr-2">Key Status:</span>
+                    <span id="api-key-status-text" class="px-2 py-1 rounded-full text-xs font-semibold bg-gray-200 text-gray-700 dark:bg-gray-700 dark:text-gray-300">Not Set</span>
+                </div>
+            </div>
+            <div class="flex flex-col sm:flex-row gap-2 items-stretch sm:items-center">
+                <input type="password" id="api-key-input" class="flex-1 p-2 rounded-md border border-gray-300 focus:ring-2 focus:ring-red-500 focus:border-red-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white text-sm" placeholder="Paste your Gemini API Key here (starts with 'AIza').">
+                <button id="save-api-key-btn" class="px-3 py-2 text-sm rounded-md bg-red-600 text-white hover:bg-red-700 transition-colors flex-shrink-0">
+                    <span data-lucide="lock" class="w-4 h-4 mr-1"></span> Save Key
+                </button>
+                <button id="clear-api-key-btn" class="px-3 py-2 text-sm rounded-md bg-gray-500 text-white hover:bg-gray-600 transition-colors flex-shrink-0">
+                    <span data-lucide="trash-2" class="w-4 h-4 mr-1"></span> Clear Key
+                </button>
+            </div>
         </div>
 
         <!-- Chat input section with attachment, voice and send button -->
@@ -918,6 +937,14 @@
         let chatHistory = []; // This array will now hold the full conversational history for API context
         const initialAIGreeting = 'Hello! I am your AI assistant. How can I assist you today? Feel free to ask questions or attach relevant files for analysis related to Dream11 or any other topic!';
 
+        // NEW API Key DOM elements
+        const apiKeyInput = document.getElementById('api-key-input');
+        const saveApiKeyBtn = document.getElementById('save-api-key-btn');
+        const clearApiKeyBtn = document.getElementById('clear-api-key-btn');
+        const apiKeyStatusText = document.getElementById('api-key-status-text');
+
+        // NEW API Key state variables
+        let userApiKey = localStorage.getItem('userGeminiApiKey') || '';
 
         // Web Speech API related variables
         let currentUtterance = null;
@@ -1147,6 +1174,75 @@
             // Disable deactivate button if it's already inactive or no prompt
             deactivateCustomPromptBtn.disabled = !isCustomPromptActive;
         }
+
+        // --- API Key Management Functions ---
+
+        function updateApiKeyStatusDisplay() {
+            if (userApiKey) {
+                // Display the key status as "Set" and visually confirm
+                apiKeyStatusText.textContent = `Set (ends with ${userApiKey.slice(-4)})`;
+                apiKeyStatusText.classList.remove('inactive-status', 'pending-status');
+                apiKeyStatusText.classList.add('active-status'); 
+                // Pre-fill the input, but keep it as a password field for security
+                apiKeyInput.value = '••••••••••••••••••••••••••••••••••••••••'; 
+            } else {
+                apiKeyStatusText.textContent = 'Not Set';
+                apiKeyStatusText.classList.remove('active-status', 'pending-status');
+                apiKeyStatusText.classList.add('inactive-status');
+                apiKeyInput.value = '';
+            }
+        }
+
+        // Initialize API Key state on load
+        window.addEventListener('load', () => {
+             // ... existing load logic ...
+             updateApiKeyStatusDisplay(); // Initialize key status
+        });
+
+
+        // Event listener for Save API Key button
+        saveApiKeyBtn.addEventListener('click', () => {
+            // If the user hasn't typed anything new (e.g., if it shows '••••...'), ignore.
+            if (apiKeyInput.value === '••••••••••••••••••••••••••••••••••••••••') {
+                showCopyMessage('API key already stored.', 'info');
+                return;
+            }
+
+            const newKey = apiKeyInput.value.trim();
+            if (newKey && newKey.startsWith('AIza')) {
+                userApiKey = newKey;
+                localStorage.setItem('userGeminiApiKey', userApiKey);
+                updateApiKeyStatusDisplay();
+                showCopyMessage('Gemini API Key saved successfully!', 'success');
+            } else {
+                showError('Invalid key format. Key should start with "AIza".');
+            }
+        });
+
+        // Event listener for Clear API Key button
+        clearApiKeyBtn.addEventListener('click', () => {
+            userApiKey = '';
+            localStorage.removeItem('userGeminiApiKey');
+            updateApiKeyStatusDisplay();
+            showCopyMessage('Gemini API Key cleared.', 'info');
+        });
+
+        // Ensure that when the input is focused, the display key is cleared so the user can paste
+        apiKeyInput.addEventListener('focus', () => {
+            if (apiKeyInput.value === '••••••••••••••••••••••••••••••••••••••••') {
+                apiKeyInput.value = '';
+            }
+        });
+
+        // If the custom prompt section is opened, ensure icons are created and key status is updated
+        togglePromptSettingsBtn.addEventListener('click', () => {
+            customPromptSection.classList.toggle('hidden');
+            if (!customPromptSection.classList.contains('hidden')) {
+                customPromptTextarea.focus();
+                createIcons(); 
+                updateApiKeyStatusDisplay(); // Refresh key status when opening
+            }
+        });
 
         // --- Template Management Functions ---
 
@@ -1905,10 +2001,15 @@
         }
 
 
-                // Generic API call function now proxies through Netlify serverless function
+        // Generic API call function now proxies through Netlify serverless function
         async function callGeminiAPI(payload) {
             // Target the Netlify function endpoint
             const proxyUrl = "/.netlify/functions/gemini-proxy"; 
+            
+            // NEW: Add the user's API key to the payload if it exists
+            if (userApiKey) {
+                payload.userApiKey = userApiKey;
+            }
 
             try {
                 const response = await fetch(proxyUrl, {
